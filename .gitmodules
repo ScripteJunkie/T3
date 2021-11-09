@@ -1,3 +1,6 @@
 [submodule "deblatting_python"]
 	path = deblatting_python
 	url = https://github.com/rozumden/deblatting_python
+[submodule "python/deblatting_python"]
+	path = python/deblatting_python
+	url = https://github.com/rozumden/deblatting_python
