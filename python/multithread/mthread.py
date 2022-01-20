@@ -4,6 +4,7 @@ import cv2
 import depthai as dai
 import numpy as np
 from multiprocessing.pool import ThreadPool
+# from multiprocessing 
 from collections import deque
 import time
 
@@ -107,19 +108,22 @@ def main():
                 tracked, res = pending.popleft().get()
                 if res is not None:
                     frame = frame
-                    new_frame_time = time.time()
-                    fps = 1/(new_frame_time-prev_frame_time)
-                    prev_frame_time = new_frame_time
-                    fps = int(fps)
-                    framerate.insert(0, fps)
-                    avgFPS = str(int(sum(framerate)/len(framerate)))
-                    if len(framerate) > 10:
-                        del framerate[len(framerate)-1]
-                    print(avgFPS)
+                    try:
+                        new_frame_time = time.time()
+                        fps = 1/(new_frame_time-prev_frame_time)
+                        prev_frame_time = new_frame_time
+                        fps = int(fps)
+                        framerate.insert(0, fps)
+                        avgFPS = str(int(sum(framerate)/len(framerate)))
+                        if len(framerate) > 10:
+                            del framerate[len(framerate)-1]
+                        print(avgFPS)
+                    except ZeroDivisionError:
+                        print(framerate)
                     # cv2.putText(res, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
                     # cv2.putText(tracked, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
-                    cv2.imshow('threaded video', tracked)
-                    cv2.imshow('threaded mask', res)
+                    # cv2.imshow('threaded video', tracked)
+                    # cv2.imshow('threaded mask', res)
                     # stream = pool.apply_async(Display.videoStream, ("threaded video", res))
                     # pending.append(stream)
                     # stream = pending.popleft().get()
