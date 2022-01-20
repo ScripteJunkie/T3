@@ -42,7 +42,7 @@ while(1):
         cv2.rectangle(frame, (10, 2), (100,20), (255,255,255), -1)
         cv2.putText(frame, str(cap.get(cv2.CAP_PROP_POS_FRAMES)), (15, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5 , (0,0,0))
         cv2.imshow('FG Mask', fgMask)
-        # frame = quantimage(frame, 2)
+        frame = quantimage(frame, 3)
         cut = cv2.bitwise_and(frame, frame, mask=fgMask)
         cut_blur = cv2.medianBlur(cut, 5)
         cv2.imshow("Cut", cut_blur)
