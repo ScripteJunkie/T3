@@ -1,94 +1,144 @@
-#!/usr/bin/env python
-
-'''
-Multithreaded video processing sample.
-Usage:
-   video_threaded.py {<video device number>|<video file name>}
-
-   Shows how python threading capabilities can be used
-   to organize parallel captured frame processing pipeline
-   for smoother playback.
-
-Keyboard shortcuts:
-
-   ESC - exit
-   space - switch between multi and single threaded processing
-'''
-
-# Python 2/3 compatibility
-from __future__ import print_function
-
+#!/usr/bin/env python3
+import re
+import cv2
+import depthai as dai
 import numpy as np
-import cv2 as cv
-
 from multiprocessing.pool import ThreadPool
 from collections import deque
+import time
 
-from common import clock, draw_str, StatValue
-import video
+# Create pipeline
+pipeline = dai.Pipeline()
 
+# Define source and output
+camRgb = pipeline.createColorCamera()
+xoutRgb = pipeline.createXLinkOut()
 
-class DummyTask:
-    def __init__(self, data):
-        self.data = data
-    def ready(self):
-        return True
-    def get(self):
-        return self.data
+xoutRgb.setStreamName("rgb")
+
+# Properties
+camRgb.setPreviewSize(1920, 1080)
+camRgb.setInterleaved(False)
+camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
+
+# Linking
+camRgb.preview.link(xoutRgb.input)
+
+global first_iter
+global points
+
+threadn = cv2.getNumberOfCPUs()
+pool = ThreadPool(processes = threadn)
+pending = deque()
+
+class Filter():
+    def procs(frame):
+
+        hsv = pool.apply_async(Filter.hsv, (frame,))
+        pending.append(hsv)
+        hsv = pending.popleft().get()
+
+        # Threshold the HSV image to get only white colors
+        mask = pool.apply_async(Filter.mask, (hsv,))
+        pending.append(mask)
+        mask = pending.popleft().get()
+        # Bitwise-AND mask and original image
+        res = cv2.bitwise_and(frame,frame, mask= mask)
+
+        contours = pool.apply_async(Filter.contours, (mask,))
+        pending.append(contours)
+        contours = pending.popleft().get()
+
+        #sorting the contour based of area
+        tracked = frame.copy()
+        return tracked, res
+
+    def hsv(frame):
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        return hsv
+    
+    def mask(hsv):
+        lower_white = np.array([2, 48, 125], dtype=np.uint8)
+        upper_white = np.array([81, 255, 255], dtype=np.uint8)
+        mask = cv2.inRange(hsv, lower_white, upper_white)
+        return mask
+
+    def contours(mask):
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        return contours
+
+class Display():
+    def videoStream(name, frame):
+        cv2.imshow(name, frame)
+
 
 def main():
-    import sys
 
-    try:
-        fn = sys.argv[1]
-    except:
-        fn = 0
-    cap = video.create_capture(fn)
+    # used to record the time when we processed last frame
+    prev_frame_time = 0
+    
+    # used to record the time at which we processed current frame
+    new_frame_time = 0
 
+    framerate = []
 
-    def process_frame(frame, t0):
-        # some intensive computation...
-        frame = cv.medianBlur(frame, 19)
-        frame = cv.medianBlur(frame, 19)
-        return frame, t0
-
-    threadn = cv.getNumberOfCPUs()
+    threadn = cv2.getNumberOfCPUs()
     pool = ThreadPool(processes = threadn)
     pending = deque()
 
-    threaded_mode = True
+    # Connect to device and start pipeline
+    with dai.Device(pipeline) as device:
 
-    latency = StatValue()
-    frame_interval = StatValue()
-    last_frame_time = clock()
-    while True:
-        while len(pending) > 0 and pending[0].ready():
-            res, t0 = pending.popleft().get()
-            latency.update(clock() - t0)
-            draw_str(res, (20, 20), "threaded      :  " + str(threaded_mode))
-            draw_str(res, (20, 40), "latency        :  %.1f ms" % (latency.value*1000))
-            draw_str(res, (20, 60), "frame interval :  %.1f ms" % (frame_interval.value*1000))
-            cv.imshow('threaded video', res)
-        if len(pending) < threadn:
-            _ret, frame = cap.read()
-            t = clock()
-            frame_interval.update(t - last_frame_time)
-            last_frame_time = t
-            if threaded_mode:
-                task = pool.apply_async(process_frame, (frame.copy(), t))
-            else:
-                task = DummyTask(process_frame(frame, t))
-            pending.append(task)
-        ch = cv.waitKey(1)
-        if ch == ord(' '):
-            threaded_mode = not threaded_mode
-        if ch == 27:
-            break
+        print('Connected cameras: ', device.getConnectedCameras())
+        # Print out usb speed
+        print('Usb speed: ', device.getUsbSpeed().name)
 
-    print('Done')
+        qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+        
+        print(np.shape(qRgb))
+        frame = None
+
+        first_iter = True
+        points = []
+
+        while True:
+            while len(pending) > 0 and pending[0].ready():
+                tracked, res = pending.popleft().get()
+                if res is not None:
+                    frame = frame
+                    new_frame_time = time.time()
+                    fps = 1/(new_frame_time-prev_frame_time)
+                    prev_frame_time = new_frame_time
+                    fps = int(fps)
+                    framerate.insert(0, fps)
+                    avgFPS = str(int(sum(framerate)/len(framerate)))
+                    if len(framerate) > 10:
+                        del framerate[len(framerate)-1]
+                    print(avgFPS)
+                    # cv2.putText(res, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
+                    # cv2.putText(tracked, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
+                    cv2.imshow('threaded video', tracked)
+                    cv2.imshow('threaded mask', res)
+                    # stream = pool.apply_async(Display.videoStream, ("threaded video", res))
+                    # pending.append(stream)
+                    # stream = pending.popleft().get()
 
 
-if __name__ == '__main__':
-    print(__doc__)
+            if len(pending) < threadn:
+                inRgb = qRgb.tryGet()
+                if inRgb is not None:
+                    frame = inRgb.getCvFrame()
+                if frame is not None:
+                    frame = frame
+                    task = pool.apply_async(Filter.procs, (frame,))
+                    pending.append(task)
+
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
+
+
+if __name__ == "__main__":
     main()
-    cv.destroyAllWindows()
+    cv2.destroyAllWindows()
