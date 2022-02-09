@@ -23,3 +23,4 @@ yarn-debug.log*
 yarn-error.log*
 external/depthai/
 frontend/node_modules/.cache/.eslintcache
+**/node_modules
