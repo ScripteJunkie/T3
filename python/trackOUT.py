@@ -72,26 +72,40 @@ with dai.Device(pipeline) as device:
             # change it according to your need !
             # lower_white = np.array([133, 0, 0], dtype=np.uint8)
             # upper_white = np.array([179, 255, 115], dtype=np.uint8)
-            lower_white = np.array([2, 48, 125], dtype=np.uint8)
-            upper_white = np.array([81, 255, 255], dtype=np.uint8)
+            lower_white = np.array([5, 109, 187], dtype=np.uint8)
+            upper_white = np.array([30, 255, 255], dtype=np.uint8)
 
             # Threshold the HSV image to get only white colors
             mask = cv2.inRange(hsv, lower_white, upper_white)
+            mask = cv2.erode(mask, None, iterations=2)
+            mask = cv2.dilate(mask, None, iterations=2)
+
             # Bitwise-AND mask and original image
             res = cv2.bitwise_and(framed,framed, mask= mask)
 
             contours,_ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-            #sorting the contour based of area
+            # sorting the contour based of area
             contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
             tracked = framed.copy()
             if contours:
-                #if any contours are found we take the biggest contour and get bounding box
-                (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
-                #drawing a rectangle around the object with 15 as margin
-                if (40 < box_width < 100 and 40 < box_height < 100):
-                    points.append((int(x_min + (box_width/2)), int(y_min + (box_height/2))))
-                    cv2.circle(tracked, (points[-1][0], points[-1][1]), 20, (100, 150, 255), -1)
-                    # cv2.rectangle(framed, (x_min - 10, y_min - 10),(x_min + box_width + 10, y_min + box_height + 10),(0,255,0), 4)
+                ((x, y), radius) = cv2.minEnclosingCircle(contours)
+                M = cv2.moments(contours)
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                # only proceed if the radius meets a minimum size
+                if radius > 10:
+                    # draw the circle and centroid on the frame,
+                    # then update the list of tracked points
+                    cv2.circle(frame, (int(x), int(y)), int(radius),
+                               (0, 255, 255), 2)
+                    cv2.circle(frame, center, 5, (0, 0, 255), -1)
+                # if any contours are found we take the biggest contour and get bounding box
+                # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+                # drawing a rectangle around the object with 15 as margin
+                # if (5 < box_width < 1000 and 5 < box_height < 1000):
+                #     points.append((int(x_min + (box_width/2)), int(y_min + (box_height/2))))
+                #     cv2.circle(tracked, (points[-1][0], points[-1][1]), 20, (100, 150, 255), -1)
+                #     # cv2.rectangle(framed, (x_min - 10, y_min - 10),(x_min + box_width + 10, y_min + box_height + 10),(0,255,0), 4)
             if first_iter:
                 avg = np.float32(framed)
                 first_iter = False
@@ -140,7 +154,8 @@ with dai.Device(pipeline) as device:
         if key == ord('q'):
             break
         if key == ord('p'):
-            cv2.waitKey(-1) #wait until any key is pressed
+            key2 = cv2.waitKey(1) # wait until any key is pressed
+            print("Test")
         if key == ord('c'):
             points=[]
 cv2.destroyAllWindows()
