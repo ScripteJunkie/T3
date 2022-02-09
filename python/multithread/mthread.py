@@ -4,7 +4,8 @@ import cv2
 import depthai as dai
 import numpy as np
 from multiprocessing.pool import ThreadPool
-# from multiprocessing 
+import threading
+from queue import Queue
 from collections import deque
 import time
 
@@ -31,6 +32,7 @@ global points
 threadn = cv2.getNumberOfCPUs()
 pool = ThreadPool(processes = threadn)
 pending = deque()
+video = deque()
 
 class Filter():
     def procs(frame):
@@ -72,7 +74,7 @@ class Filter():
 class Display():
     def videoStream(name, frame):
         cv2.imshow(name, frame)
-
+        # cv2.imshow(name, video.get(block=False))
 
 def main():
 
@@ -82,11 +84,13 @@ def main():
     # used to record the time at which we processed current frame
     new_frame_time = 0
 
+    avgFPS = 1
+
     framerate = []
 
     threadn = cv2.getNumberOfCPUs()
     pool = ThreadPool(processes = threadn)
-    pending = deque()
+    process = deque()
 
     # Connect to device and start pipeline
     with dai.Device(pipeline) as device:
@@ -104,10 +108,9 @@ def main():
         points = []
 
         while True:
-            while len(pending) > 0 and pending[0].ready():
-                tracked, res = pending.popleft().get()
+            while len(process) > 0 and process[0].ready():
+                tracked, res = process.popleft().get()
                 if res is not None:
-                    frame = frame
                     try:
                         new_frame_time = time.time()
                         fps = 1/(new_frame_time-prev_frame_time)
@@ -118,25 +121,37 @@ def main():
                         if len(framerate) > 10:
                             del framerate[len(framerate)-1]
                         print(avgFPS)
+                        # if (1/(new_frame_time-prev_frame_time) > 120):
+                        #     # video.put(res)
+                        #     stream = threading.Thread(target=Display.videoStream, args=("video", res))
+                        #     stream.start()
                     except ZeroDivisionError:
-                        print(framerate)
+                        print(framerate[0])
                     # cv2.putText(res, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
                     # cv2.putText(tracked, avgFPS, (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (100, 200, 100), 2, cv2.LINE_AA)
                     # cv2.imshow('threaded video', tracked)
                     # cv2.imshow('threaded mask', res)
-                    # stream = pool.apply_async(Display.videoStream, ("threaded video", res))
-                    # pending.append(stream)
-                    # stream = pending.popleft().get()
+                    stream = pool.apply_async(Display.videoStream, ("threaded video", res))
+                    video.append(stream)
+                    # stream = process.popleft().get()
+                    if (framerate[0] < 20):
+                        stream = pool.apply_async(Display.videoStream, ("threaded video", res))
+                        video.append(stream)
+                        print("dhfhj")
+                    #     # video.put(res)
+                    #     stream = threading.Thread(target=Display.videoStream, args=("video", res))
+                    #     stream.start()
 
 
-            if len(pending) < threadn:
+            if len(process) < threadn:
                 inRgb = qRgb.tryGet()
                 if inRgb is not None:
                     frame = inRgb.getCvFrame()
                 if frame is not None:
                     frame = frame
-                    task = pool.apply_async(Filter.procs, (frame,))
-                    pending.append(task)
+                    if (int(avgFPS) < 60):
+                        task = pool.apply_async(Filter.procs, (frame,))
+                        process.append(task)
 
             key = cv2.waitKey(1)
             if key == ord('q'):
