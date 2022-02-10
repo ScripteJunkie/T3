@@ -97,10 +97,10 @@ with dai.Device(pipeline) as device:
             mask_3 = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
             
             # stack the mask, orginal frame and the filtered result
-            stacked = np.hstack((mask_3,frame,res))
+            stacked = np.hstack((frame,res))
 
             # Show this stacked frame at 40% of the size.
-            cv2.imshow('Trackbars',cv2.resize(stacked,None,fx=0.4,fy=0.4))
+            cv2.imshow('Trackbars',cv2.resize(stacked,None,fx=0.8,fy=0.8))
             
             # If the user presses ESC then exit the program
 
