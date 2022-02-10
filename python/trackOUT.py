@@ -89,19 +89,22 @@ with dai.Device(pipeline) as device:
 
             tracked = framed.copy()
             if contours:
-                ((x, y), radius) = cv2.minEnclosingCircle(contours)
-                M = cv2.moments(contours)
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                ((x, y), radius) = cv2.minEnclosingCircle(contours[0])
+                # M = cv2.moments(contours[0])
+                # center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                center = (int(x),int(y))
+                radius = int(radius)
                 # only proceed if the radius meets a minimum size
                 if radius > 10:
                     # draw the circle and centroid on the frame,
                     # then update the list of tracked points
-                    cv2.circle(frame, (int(x), int(y)), int(radius),
+                    cv2.circle(tracked, (int(x), int(y)), int(radius),
                                (0, 255, 255), 2)
-                    cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                # if any contours are found we take the biggest contour and get bounding box
+                    cv2.circle(tracked, center, 5, (0, 0, 255), -1)
+                    points.append(center)
+                # # if any contours are found we take the biggest contour and get bounding box
                 # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
-                # drawing a rectangle around the object with 15 as margin
+                # # drawing a rectangle around the object with 15 as margin
                 # if (5 < box_width < 1000 and 5 < box_height < 1000):
                 #     points.append((int(x_min + (box_width/2)), int(y_min + (box_height/2))))
                 #     cv2.circle(tracked, (points[-1][0], points[-1][1]), 20, (100, 150, 255), -1)
@@ -115,7 +118,7 @@ with dai.Device(pipeline) as device:
 
             for i in range(1, len(points)):
                 # print(points[i])
-                if (233 < points[i][0] < 1694 and 182 < points[i][1] < 913):
+                if (0 < points[i][0] < 1920 and 0 < points[i][1] < 1080):
                     cv2.circle(tracked, (points[i][0], points[i][1]), 2, (255, 0, 255), 2)
                     cv2.line(tracked, (points[i-1][0], points[i-1][1]), (points[i][0], points[i][1]), (0, 0, 100), 2)
             # cv2.accumulateWeighted(frame, avg, 0.005)
