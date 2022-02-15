@@ -8,37 +8,31 @@ import time
 import numpy as np
 import math
 
-from sympy import N
-
 # size = 6.125 # paddle (inches)
 size = 1.57 # ball (inches)
 
+# define range of white color in HSV
+# change it according to your need !
+# paddle
+# lower_white = np.array([160, 144, 0], dtype=np.uint8)
+# upper_white = np.array([179, 255, 255], dtype=np.uint8)
+# ball
+lower_white = np.array([0, 135, 135], dtype=np.uint8)
+upper_white = np.array([40, 255, 255], dtype=np.uint8)
 
 def proc(frame):
     start = time.time()
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # define range of white color in HSV
-    # change it according to your need !
-    # paddle
-    # lower_white = np.array([160, 144, 0], dtype=np.uint8)
-    # upper_white = np.array([179, 255, 255], dtype=np.uint8)
-    # ball
-    lower_white = np.array([0, 135, 135], dtype=np.uint8)
-    upper_white = np.array([40, 255, 255], dtype=np.uint8)
-
-    # Threshold the HSV image to get only white colors
-    mask = cv2.inRange(hsv, lower_white, upper_white)
+    # hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     # Bitwise-AND mask and original image
-    res = cv2.bitwise_and(frame,frame, mask= mask)
-
-    contours,_ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    #sorting the contour based of area
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    # res = cv2.bitwise_and(frame,frame, mask= mask)
+    result = roi(frame)
     tracked = frame.copy()
     posDump = []
-    if contours:
+    if result:
         #if any contours are found we take the biggest contour and get bounding box
-        (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+        # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+        (mask, x_min, y_min, box_width, box_height) = result
+        res = cv2.bitwise_and(frame,frame, mask= mask)
         #drawing a rectangle around the object with 15 as margin
         if (15 < box_width < 200 and 15 < box_height < 200):
             # Rough visual angle based on pixels/degree and dimension of the bounds
@@ -52,6 +46,41 @@ def proc(frame):
             cv2.putText(tracked, str(round(disToCam, 3)) + " inch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,100,12), 2)
             posDump = [vizAngZ, disToCam, box_height*2, box_width*2, x_min, y_min]
     return tracked, res, posDump
+
+def roi(frameIn):
+    frameIn = cv2.cvtColor(frameIn, cv2.COLOR_BGR2HSV)
+    # Threshold the HSV image to get only white colors
+    mask = cv2.inRange(frameIn, lower_white, upper_white)
+    mask = cv2.erode(mask, None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
+    contours,_ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    #sorting the contour based of area
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    if contours:
+        # rank = []
+        for i in contours:
+            rect = cv2.minAreaRect(i)
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            cv2.drawContours(frameIn,[box],0,(0,255, 255),2)
+        cv2.imshow("gngmgm", frameIn)
+        #     (x_min, y_min, box_width, box_height) = cv2.boundingRect(i)
+        #     crop = mask[(x_min-20):(x_min+(box_width+20)), (y_min-20):(y_min+(box_height+20))]
+        #     if np.sum(crop) > 0:
+        #         cv2.imshow("rank", crop)
+        #         density = np.sum(crop > 0)/np.sum(crop == 0)
+        #         rank.append(density)
+        #         print(np.argmax(rank))
+        #         (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[np.argmax(rank)])
+        #         return mask, x_min, y_min, box_width, box_height
+        #     else:
+        #         return mask, 0, 0, 0, 0
+        (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+        return mask, x_min, y_min, box_width, box_height
+        # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+        # return mask, res, x_min, y_min, box_width, box_height
+    else: 
+        return mask, 0, 0, 0, 0
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
@@ -131,14 +160,11 @@ with contextlib.ExitStack() as stack:
         if in_rgb1 is not None:
             frame = in_rgb1.getCvFrame()
             out1, res1, pos1 = proc(frame)
-            # cv2.imshow("1", out1)
         if in_rgb2 is not None:
             frame = in_rgb2.getCvFrame()
             out2, res2, pos2 = proc(frame)
-            # cv2.imshow("2", out2)
 
         # posDump = [vizAngZ, disToCam, box_height*2, box_width*2, x_min, y_min]
-        # print(len(pos1), pos1)
         if len(pos1) > 0:
             try:
                 angtoXaxis = round((abs(540-pos1[5]))/(1920/68.7938), 2)
@@ -147,7 +173,7 @@ with contextlib.ExitStack() as stack:
                     Zheight1 *= -1
             except ZeroDivisionError:
                 Zheight1 = 0
-            print("Camera 1 Z Estimate:" + str(round(Zheight1, 4)))
+            # print("Camera 1 Z Estimate:" + str(round(Zheight1, 4)))
         if len(pos2) > 0:
             try:
                 angtoXaxis = round((abs(540-pos2[5]))/(1920/68.7938), 2)
@@ -156,7 +182,7 @@ with contextlib.ExitStack() as stack:
                     Zheight2 *= -1
             except ZeroDivisionError:
                 Zheight2 = 0
-            print("Camera 2 Z Estimate:" + str(round(Zheight2, 4)))
+            # print("Camera 2 Z Estimate:" + str(round(Zheight2, 4)))
         stackedTop = np.hstack((out1,out2))
         stackedBottom = np.hstack((res1,res2))
         Full = np.concatenate((stackedTop, stackedBottom), axis=0)
