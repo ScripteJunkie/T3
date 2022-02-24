@@ -28,10 +28,12 @@ def proc(frame):
     result = roi(frame)
     tracked = frame.copy()
     posDump = []
+    cleaned = []
+    prev = []
     if result:
         #if any contours are found we take the biggest contour and get bounding box
         # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
-        (mask, x_min, y_min, box_width, box_height) = result
+        (mask, x_min, y_min, box_width, box_height, contours) = result
         res = cv2.bitwise_and(frame,frame, mask= mask)
         #drawing a rectangle around the object with 15 as margin
         if (15 < box_width < 200 and 15 < box_height < 200):
@@ -43,8 +45,18 @@ def proc(frame):
             cv2.rectangle(tracked, (x_min - 0, y_min - 0),(x_min + box_width + 0, y_min + box_height + 0),(100,100,0), 1)
             cv2.putText(tracked, '6 1/8 in (0.155575 m)', (x_min - 0, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (50,255,12), 2)
             cv2.putText(tracked, str(vizAngZ) + " deg", (x_min - 0, y_min - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (50,255,12), 2)
-            cv2.putText(tracked, str(round(disToCam, 3)) + " inch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,100,12), 2)
+            cv2.putText(tracked, str(round(disToCam, 3)) + " inch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,100,12), 2)           
             posDump = [vizAngZ, disToCam, box_height*2, box_width*2, x_min, y_min]
+        for i in contours:
+            x, y, width, height = cv2.boundingRect(i)
+            # for l in contours:
+            #     if l <  or l >= j :
+            #         res = False 
+            #         break
+            if 10000 > width*height > 100:# and 0.8*height < width < 1.2*height:
+                cv2.rectangle(tracked, (x - 0, y - 0),(x + width + 0, y + height + 0),(0,255,0), 2)
+                cv2.putText(tracked, str(width) + " " + str(height), (x - 0, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (50,255,12), 2)
+        prev = contours
     return tracked, res, posDump
 
 def roi(frameIn):
@@ -57,30 +69,30 @@ def roi(frameIn):
     #sorting the contour based of area
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
     if contours:
-        # rank = []
-        for i in contours:
-            rect = cv2.minAreaRect(i)
-            box = cv2.boxPoints(rect)
-            box = np.int0(box)
-            cv2.drawContours(frameIn,[box],0,(0,255, 255),2)
-        cv2.imshow("gngmgm", frameIn)
-        #     (x_min, y_min, box_width, box_height) = cv2.boundingRect(i)
-        #     crop = mask[(x_min-20):(x_min+(box_width+20)), (y_min-20):(y_min+(box_height+20))]
-        #     if np.sum(crop) > 0:
-        #         cv2.imshow("rank", crop)
-        #         density = np.sum(crop > 0)/np.sum(crop == 0)
-        #         rank.append(density)
-        #         print(np.argmax(rank))
-        #         (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[np.argmax(rank)])
-        #         return mask, x_min, y_min, box_width, box_height
-        #     else:
-        #         return mask, 0, 0, 0, 0
-        (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
-        return mask, x_min, y_min, box_width, box_height
+        # # rank = []
+        # for i in contours:
+        #     rect = cv2.minAreaRect(i)
+        #     box = cv2.boxPoints(rect)
+        #     box = np.int0(box)
+        #     cv2.drawContours(frameIn,[box],0,(0,255, 255),2)
+        # cv2.imshow("gngmgm", frameIn)
+        # #     (x_min, y_min, box_width, box_height) = cv2.boundingRect(i)
+        # #     crop = mask[(x_min-20):(x_min+(box_width+20)), (y_min-20):(y_min+(box_height+20))]
+        # #     if np.sum(crop) > 0:
+        # #         cv2.imshow("rank", crop)
+        # #         density = np.sum(crop > 0)/np.sum(crop == 0)
+        # #         rank.append(density)
+        # #         print(np.argmax(rank))
+        # #         (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[np.argmax(rank)])
+        # #         return mask, x_min, y_min, box_width, box_height
+        # #     else:
+        # #         return mask, 0, 0, 0, 0
         # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
-        # return mask, res, x_min, y_min, box_width, box_height
+        # return mask, x_min, y_min, box_width, box_height
+        (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
+        return mask, x_min, y_min, box_width, box_height, contours
     else: 
-        return mask, 0, 0, 0, 0
+        return mask, 0, 0, 0, 0, []
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
