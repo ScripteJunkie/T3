@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 # from scipy.misc import bytescale
 
-cap = cv2.VideoCapture('/Users/ashtonmaze/Code/GitHub/T3/python/assets/Test3.MP4')
+cap = cv2.VideoCapture('/Your/Path/Here.mp4')
 # cap = cv2.VideoCapture(0)
 
 first_iter = True
