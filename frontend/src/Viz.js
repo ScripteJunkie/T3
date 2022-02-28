@@ -3,13 +3,13 @@ import React, { Component } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 // import { Vector3 } from "three";
-import './App.css'
+import './Viz.css'
 
-class App extends Component {
+class Viz extends Component {
   componentDidMount() {
     var scene = new THREE.Scene();
     // const canvas = document.querySelector('viewport');
-    var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+    var camera = new THREE.PerspectiveCamera( 30, window.innerWidth/window.innerHeight, 0.1, 1000 );
     // var renderer = new THREE.WebGLRenderer({ canvas });
     var renderer = new THREE.WebGLRenderer( { antialias: true } );
     scene.background = new THREE.Color('grey');
@@ -17,19 +17,22 @@ class App extends Component {
     document.body.appendChild( renderer.domElement );
     renderer.render( scene, camera );
 
-    camera.position.z = 2;
-    camera.position.y = 1.5;
-    camera.position.x = 1;
+    camera.position.z = 4;
+    camera.position.y = 2.5;
+    camera.position.x = 3;
     camera.lookAt(new THREE.Vector3(0, 0, 0));
     const controls = new OrbitControls( camera, renderer.domElement );
 
-    var overhead = new THREE.AmbientLight( {color: 0xffffff}, 0.2);
+    controls.minDistance = 0.5;
+    controls.maxDistance = 8;
+
+    var overhead = new THREE.AmbientLight( {color: 0xffffff}, 1);
     scene.add( overhead );
 
-    const lightL1 = new THREE.DirectionalLight( 0x404040, 3); // soft white light
-    const lightR1 = new THREE.DirectionalLight( 0x404040, 3); // soft white light
-    const lightL2 = new THREE.DirectionalLight( 0x404040, 3); // soft white light
-    const lightR2 = new THREE.DirectionalLight( 0x404040, 3); // soft white light
+    const lightL1 = new THREE.DirectionalLight( 0x404040, 1); // soft white light
+    const lightR1 = new THREE.DirectionalLight( 0x404040, 1); // soft white light
+    const lightL2 = new THREE.DirectionalLight( 0x404040, 1); // soft white light
+    const lightR2 = new THREE.DirectionalLight( 0x404040, 1); // soft white light
     lightL1.position.x = -1;
     lightR1.position.x = 1;
     lightL2.position.x = -1;
@@ -46,7 +49,7 @@ class App extends Component {
     var x = -1
     var ballMesh = new THREE.SphereGeometry( 0.02 );
     // var ballMat = new THREE.MeshBasicMaterial( { color: 0xdadada } );
-    var ballMat = new THREE.MeshPhongMaterial( { color: 0xdadada } );
+    var ballMat = new THREE.MeshLambertMaterial( { color: 0xdadada, emissive: 0xdadada, emissiveIntensity: .5} );
     for (var i = 0; i < 20; i++) {
       window['cube'+i] = new THREE.Mesh( ballMesh, ballMat );
       eval('cube'+i).position.x = ( x+(i/15) );
@@ -55,25 +58,33 @@ class App extends Component {
       eval('cube'+i).castShadow = true;
       eval('cube'+i).receiveShadow = true;
       scene.add( eval('cube'+i) );
-      console.log(eval('cube'+i));
+      // console.log(eval('cube'+i));
       renderer.render( scene, camera );
     }
 
     var tableMesh = new THREE.BoxGeometry( 2.74, 0.01, 1.526 );
-    var tableMat = new THREE.MeshPhongMaterial( {color: 0x335f51} );
+    var tableMat = new THREE.MeshLambertMaterial( {color: 0x335f51, emissive: 0x335f51, emissiveIntensity: .5} );
     var table = new THREE.Mesh( tableMesh, tableMat );
     table.position.y = -0.01
     table.castShadow= true;
     table.receiveShadow = true;
     scene.add( table );
 
-    function animate()
+    function onResize()
+    {
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    function animate(time)
     {
         controls.update();
         requestAnimationFrame ( animate );  
         renderer.render (scene, camera);
     }
     animate();
+    window.onresize = onResize;
   }
 
   render() {
@@ -82,4 +93,4 @@ class App extends Component {
     )
   }
 }
-export default App
+export default Viz

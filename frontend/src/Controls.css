@@ -1,0 +1,9 @@
+.controlpanel {
+    height: 28rem;
+    width: 38rem;
+    background-color: antiquewhite;
+    position: absolute;
+    z-index: 10;
+    border-radius: 0.5rem;
+    margin: 1rem;
+}

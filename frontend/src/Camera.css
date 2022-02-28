@@ -1,0 +1,7 @@
+.feed {
+    width: 40rem;
+    height: 30rem;
+    background-color: black;
+    position: absolute;
+    border-radius: 1rem;
+}

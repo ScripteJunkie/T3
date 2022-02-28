@@ -1,11 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import Controls from './Controls';
 import './index.css';
-import App from './App';
+import Viz from './Viz';
+import Camera from './Camera';
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    {/* <Camera />
+    <Controls /> */}
+    <Viz />
   </React.StrictMode>,
   document.getElementById('root')
 );
