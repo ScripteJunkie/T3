@@ -7,6 +7,7 @@ import contextlib
 import time
 import numpy as np
 import math
+from envHandler import toList
 
 # size = 6.125 # paddle (inches)
 size = 1.57 # ball (inches)
@@ -17,8 +18,8 @@ size = 1.57 # ball (inches)
 # lower_white = np.array([160, 144, 0], dtype=np.uint8)
 # upper_white = np.array([179, 255, 255], dtype=np.uint8)
 # ball
-lower_white = np.array([0, 135, 135], dtype=np.uint8)
-upper_white = np.array([40, 255, 255], dtype=np.uint8)
+lower_white = np.array(toList('BALL_HSV_MIN'), dtype=np.uint8)
+upper_white = np.array(toList('BALL_HSV_MAX'), dtype=np.uint8)
 
 def proc(frame):
     start = time.time()
@@ -36,7 +37,7 @@ def proc(frame):
         (mask, x_min, y_min, box_width, box_height, contours) = result
         res = cv2.bitwise_and(frame,frame, mask= mask)
         #drawing a rectangle around the object with 15 as margin
-        if (15 < box_width < 200 and 15 < box_height < 200):
+        if (5 < box_width < 200 and 5 < box_height < 200):
             # Rough visual angle based on pixels/degree and dimension of the bounds
             vizAngZ = round(2*max(box_height, box_width)/(1920/68.7938), 2)
             # Distance estimate from the known dimensions and the objects visual angle
