@@ -9,7 +9,7 @@ import os
 # Show or hide debug statements
 verbose = True
 # Show or hide preview images
-imgVerbose = True
+imgVerbose = False
 # Defining the dimensions of checkerboard
 CHECKERBOARD = (9, 15)
 # Directory where images are located (Directory must be located in same directory as code)
@@ -102,14 +102,15 @@ for imagePath in imgList:
         imgpoints.append(corners2)
 
         # Draw and display the corners
-        cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
+        if imgVerbose:
+            cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
+            cv2.imshow('img', img)
+            cv2.waitKey(0)
+
+    if imgVerbose:
         cv2.imshow('img', img)
         cv2.waitKey(0)
-
-    cv2.imshow('img', img)
-    cv2.waitKey(0)
-
-    cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
 h, w = img.shape[:2]
 
