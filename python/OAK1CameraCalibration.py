@@ -10,10 +10,8 @@ import os
 verbose = True
 # Show or hide preview images
 imgVerbose = True
-
 # Defining the dimensions of checkerboard
 CHECKERBOARD = (9, 15)
-
 # Directory where images are located (Directory must be located in same directory as code)
 imgDirName = 'images'
 
