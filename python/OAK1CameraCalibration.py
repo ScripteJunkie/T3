@@ -57,8 +57,8 @@ for file in fileList:
 for imagePath in imgList:
     img = cv2.imread(imagePath)
     imgW = img.shape[1]
-
     imgH = img.shape[0]
+
     if imgVerbose:
         scaledDim = (int(round(imgW / 2)), int(round(imgH / 2)))
         previewImg = cv2.resize(img, scaledDim)
@@ -124,13 +124,53 @@ detected corners (imgpoints)
 size = (img.shape[1], img.shape[0])
 print(size)
 
+# Obtaining camera calibration matrices
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, size, None, None)
 
-print("Camera matrix : \n")
-print(mtx)
-print("dist : \n")
-print(dist)
-print("rvecs : \n")
-print(rvecs)
-print("tvecs : \n")
-print(tvecs)
+if verbose:
+    print(
+        f'Camera matrix:\n'
+        f'{mtx}\n'
+        f'dist:\n'
+        f'{dist}\n'
+        f'rvecs:\n'
+        f'{rvecs}\n'
+        f'tvecs:\n'
+        f'{tvecs}'
+    )
+
+for imagePath in imgList:
+    img = cv2.imread(imagePath)
+    cv2.line(img, (0, 0), (img.shape[1], img.shape[0]), (0, 255, 0), thickness=4)
+    newCameraMtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+
+    # undistort
+    dst = cv2.undistort(img, mtx, dist, None, newCameraMtx)
+    # crop the image
+    x, y, w, h = roi
+    img = img[y:y+h, x:x+w]
+    dst = dst[y:y+h, x:x+w]
+
+    scaledDim = (int(round(img.shape[1] / 2)), int(round(img.shape[0] / 2)))
+
+    combinedImg = cv2.addWeighted(img, 0.4, dst, 0.1, 0)
+    # combinedScaled = cv2.resize(combinedImg, scaledDim)
+
+    # scaledImg = cv2.resize(img, scaledDim)
+    # scaledDst = cv2.resize(dst, scaledDim)
+
+    if imgVerbose:
+        cv2.imshow('Combined Image', combinedImg)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+testImg = cv2.imread(r'C:\Users\raman\PycharmProjects\T3\python\Screenshot 2022-03-24 15-36-46.png')
+newCameraMtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+fixedTestImg = cv2.undistort(testImg, mtx, dist, None, newCameraMtx)
+
+cv2.imshow('Fixed Image', fixedTestImg)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+cv2.imwrite('savedTestImage.png', fixedTestImg)
+
