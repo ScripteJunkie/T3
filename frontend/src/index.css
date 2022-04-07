@@ -14,7 +14,20 @@ code {
 }
 
 canvas {
-  height: auto !important;
-  width: 50rem !important;
-  border-radius: 1rem !important;
+  height: 60vh !important;
+  width: auto !important;
+  /* border-radius: 1rem !important; */
+  border: 1px solid black;
+}
+
+.row {
+  display:flex; 
+  flex-direction:row;
+  position: absolute;
+  bottom: 0;
+}
+
+.stack {
+  display:flex; 
+  flex-direction:column;
 }
