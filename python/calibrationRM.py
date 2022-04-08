@@ -12,7 +12,14 @@ def nothing(x):
 
 cv2.namedWindow('Camera Controls')
 
-cv2.createTrackbar('focus', 'Camera Controls', 0, 255, nothing)
+# NOTE: cv2 trackbars cannot have minimum values other than zero. All max values shifted accordingly.
+
+# Focus = [0, 255]
+cv2.createTrackbar('Focus', 'Camera Controls', 0, 255, nothing)
+# Exposure = [1, 33000]
+cv2.createTrackbar('Exposure', "Camera Controls", 0, 32999, nothing)
+# ISO = [100, 1600]
+cv2.createTrackbar('ISO', "Camera Controls", 0, 1500, nothing)
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
@@ -34,13 +41,13 @@ def getPipeline(device_type):
     controlIn.setStreamName("control")
     controlIn.out.link(cam_rgb.inputControl)
 
-    stillMjpegOut = pipeline.create(dai.node.XLinkOut)
-    stillMjpegOut.setStreamName('still')
-
-    stillEncoder = pipeline.create(dai.node.VideoEncoder)
-    stillEncoder.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
-    cam_rgb.still.link(stillEncoder.input)
-    stillEncoder.bitstream.link(stillMjpegOut.input)
+    # stillMjpegOut = pipeline.create(dai.node.XLinkOut)
+    # stillMjpegOut.setStreamName('still')
+    #
+    # stillEncoder = pipeline.create(dai.node.VideoEncoder)
+    # stillEncoder.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
+    # cam_rgb.still.link(stillEncoder.input)
+    # stillEncoder.bitstream.link(stillMjpegOut.input)
 
     # Create output
     xout_rgb = pipeline.create(dai.node.XLinkOut)
@@ -89,26 +96,29 @@ with contextlib.ExitStack() as stack:
 
         controlQueue = device.getInputQueue('control')
 
-        stillQueue = device.getOutputQueue('still')
+        # stillQueue = device.getOutputQueue('still')
 
         # Output queue will be used to get the rgb frames from the output defined above
         q_rgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
         stream_name = "rgb-" + mxid + "-" + device_type
-        q_rgb_list.append((controlQueue, stillQueue, q_rgb, stream_name))
+        # If reimplementing still frame capture, add stillQueue below
+        q_rgb_list.append((controlQueue, q_rgb, stream_name))
 
     while True:
-        exposure = cv2.getTrackbarPos("Exposure", "Trackbars")
-        iso = cv2.getTrackbarPos("ISO", "Trackbars")
-        focus = cv2.getTrackbarPos("focus", "Camera Controls")
+        # Adjust variables for cv2 trackbar shift (see note where trackbars defined)
+        focus = cv2.getTrackbarPos("Focus", "Camera Controls")
+        exposure = cv2.getTrackbarPos("Exposure", "Trackbars") + 1
+        iso = cv2.getTrackbarPos("ISO", "Trackbars") + 100
 
-        for controlQueue, stillQueue, q_rgb, stream_name in q_rgb_list:
+        # If reimplementing still frame capture, add stillQueue
+        for controlQueue, q_rgb, stream_name in q_rgb_list:
 
-            stillFrames = stillQueue.tryGetAll()
-            for stillFrame in stillFrames:
-                # Decode JPEG
-                frame = cv2.imdecode(stillFrame.getData(), cv2.IMREAD_UNCHANGED)
-                # Display
-                cv2.imshow('still', frame)
+            # stillFrames = stillQueue.tryGetAll()
+            # for stillFrame in stillFrames:
+            #     # Decode JPEG
+            #     frame = cv2.imdecode(stillFrame.getData(), cv2.IMREAD_UNCHANGED)
+            #     # Display
+            #     cv2.imshow('still', frame)
 
             in_rgb = q_rgb.tryGet()
             if in_rgb is not None:
@@ -121,10 +131,10 @@ with contextlib.ExitStack() as stack:
         if cv2.waitKey(1) == ord('q'):
             break
 
-        elif cv2.waitKey(1) == ord('p'):
-            cv2.imwrite('test.jpeg', frame)
+        # elif cv2.waitKey(1) == ord('p'):
+        #     cv2.imwrite('test.jpeg', frame)
 
-        elif cv2.waitKey(1) == ord('c'):
-            ctrl = dai.CameraControl()
-            ctrl.setCaptureStill(True)
-            controlQueue.send(ctrl)
+        # elif cv2.waitKey(1) == ord('c'):
+        #     ctrl = dai.CameraControl()
+        #     ctrl.setCaptureStill(True)
+        #     controlQueue.send(ctrl)
