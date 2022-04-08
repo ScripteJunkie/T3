@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import cv2
 import depthai as dai
@@ -6,9 +8,22 @@ import contextlib
 # tkinter should work after this
 import tkinter as tk
 
+# fInit = 0
+#
+# fChange = None
+#
+# def testChangeF(x):
+#     global fInit, fChange
+#     if fInit - x is not 0:
+#         fChange = True
+#         fInit = x
+#         time.sleep(0.1)
+#         fChange = False
+#     else:
+#         fInit = x
+
 def nothing(x):
     pass
-
 
 cv2.namedWindow('Camera Controls')
 
@@ -20,6 +35,8 @@ cv2.createTrackbar('Focus', 'Camera Controls', 0, 255, nothing)
 cv2.createTrackbar('Exposure', "Camera Controls", 0, 32999, nothing)
 # ISO = [100, 1600]
 cv2.createTrackbar('ISO', "Camera Controls", 0, 1500, nothing)
+# White Balance = [1000, 12000]
+cv2.createTrackbar('White-Balance', "Camera Controls", 0, 11000, nothing)
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
@@ -107,8 +124,9 @@ with contextlib.ExitStack() as stack:
     while True:
         # Adjust variables for cv2 trackbar shift (see note where trackbars defined)
         focus = cv2.getTrackbarPos("Focus", "Camera Controls")
-        exposure = cv2.getTrackbarPos("Exposure", "Trackbars") + 1
-        iso = cv2.getTrackbarPos("ISO", "Trackbars") + 100
+        exposure = cv2.getTrackbarPos("Exposure", "Camera Controls") + 1
+        iso = cv2.getTrackbarPos("ISO", "Camera Controls") + 100
+        whiteb = cv2.getTrackbarPos("White-Balance", "Camera Controls") + 1000
 
         # If reimplementing still frame capture, add stillQueue
         for controlQueue, q_rgb, stream_name in q_rgb_list:
@@ -126,6 +144,7 @@ with contextlib.ExitStack() as stack:
                 ctrl = dai.CameraControl()
                 ctrl.setManualFocus(focus)
                 ctrl.setManualExposure(exposure, iso)
+                ctrl.setManualWhiteBalance(whiteb)
                 controlQueue.send(ctrl)
 
         if cv2.waitKey(1) == ord('q'):
