@@ -9,7 +9,7 @@ import os
 # Show or hide debug statements
 verbose = True
 # Show or hide preview images
-imgVerbose = False
+imgVerbose = True
 # Defining the dimensions of checkerboard
 CHECKERBOARD = (9, 15)
 # Directory where images are located (Directory must be located in same directory as code)
