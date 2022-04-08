@@ -5,11 +5,54 @@ import depthai as dai
 import contextlib
 from matplotlib.pyplot import draw
 import numpy as np
+import sys
+sys.path.append('../')
+import envHandler
 
-captured, calibrated = False, False
 cal_img = []
 p1 = []
 mouse = 100, 100
+
+pixel = 0, 0, 0
+
+def bgr_to_hsv(b, g, r):
+ 
+    # R, G, B values are divided by 255
+    # to change the range from 0..255 to 0..1:
+    r, g, b = r / 255.0, g / 255.0, b / 255.0
+ 
+    # h, s, v = hue, saturation, value
+    cmax = max(r, g, b)    # maximum of r, g, b
+    cmin = min(r, g, b)    # minimum of r, g, b
+    diff = cmax-cmin       # diff of cmax and cmin.
+ 
+    # if cmax and cmax are equal then h = 0
+    if cmax == cmin:
+        h = 0
+     
+    # Isn't compatable with normal HSV, camera uses values to 255
+    # to fix change 255 to 360, 85 to 120, and 170 to 240
+    # if cmax equal r then compute h
+    elif cmax == r:
+        h = (60 * ((g - b) / diff) + 255) % 255
+ 
+    # if cmax equal g then compute h
+    elif cmax == g:
+        h = (60 * ((b - r) / diff) + 85) % 255
+ 
+    # if cmax equal b then compute h
+    elif cmax == b:
+        h = (60 * ((r - g) / diff) + 170) % 255
+ 
+    # if cmax equal zero
+    if cmax == 0:
+        s = 0
+    else:
+        s = (diff / cmax) * 100 * 2.55
+ 
+    # compute v
+    v = cmax * 100 * 2.55
+    return h, s, v
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
@@ -34,14 +77,17 @@ def getPipeline(device_type):
 
 drawing = False
 
-def mouseHandler(event, x, y, flags, param):
+def mouseHandler(event, y, x, flags, param):
     global drawing
     if event == cv2.EVENT_LBUTTONDOWN:
         # draw circle here (etc...)
         drawing = True
         p1.append([x, y])
+        global pixel
+        pixel = bgr_to_hsv(img1[x, y][0], img1[x, y][1], img1[x, y][2])
+        print(pixel)
         # print('x = %d, y = %d'%(x, y))
-        print(1920-x,1080-y)
+        # print(1920-y,1080-x, y, x)
     if event == cv2.EVENT_LBUTTONUP:
         # draw circle here (etc...)
         drawing = False
@@ -110,37 +156,19 @@ with contextlib.ExitStack() as stack:
         q_rgb_list.append((q_rgb, stream_name))
 
     while True:
-        if captured == True and calibrated == False:
             in_rgb1 = q_rgb_list[0][0].tryGet()
-            in_rgb2 = q_rgb_list[1][0].tryGet()
+            # in_rgb2 = q_rgb_list[1][0].tryGet()
             if in_rgb1 is not None:
                 img1 = in_rgb1.getCvFrame()
                 cv2.imshow("frame1", img1)
                 # cv2.namedWindow("zoom", cv2.WINDOW_AUTOSIZE)
                 cv2.setMouseCallback('frame1', mouseHandler, img1)
-                # zoomed = zoom(img1, mouse, 5)[(5*mouse[1]-100):(5*mouse[1]+100), (5*mouse[0]-100):(5*mouse[0]+100)]
-                # cv2.circle(zoomed, (100,100), radius=2, color=(0, 0, 255), thickness=5)
-                # cv2.imshow("zoom", zoomed)
-            # if in_rgb2 is not None:
-            #     img2 = in_rgb2.getCvFrame()
-            #     cv2.imshow("2", img2)
 
-            # img1 = cal_img[0]
-            # img2 = cal_img[1]
-            # cv2.imshow("frame1", img1)
-            # cv2.imshow("frame2", img2)
-            # cv2.namedWindow("zoom", cv2.WINDOW_AUTOSIZE)
-            # cv2.setMouseCallback('frame1', mouseHandler, img1)
-            # calibrated = True
-
-        # for q_rgb, stream_name in q_rgb_list:
-        #     in_rgb = q_rgb.tryGet()
-        #     if in_rgb is not None:
-        #         if captured == False:
-        #             time.sleep(3)
-        #             cal_img.append(in_rgb.getCvFrame().copy())
-        #         # cv2.imshow(stream_name, in_rgb.getCvFrame())
-        captured = True
-
-        if cv2.waitKey(1) == ord('q'):
-            break
+            if cv2.waitKey(1) == ord('q'):
+                if (pixel[0] != 0):
+                    minm = np.clip([(pixel[0]-20), (pixel[1]-100), (pixel[2])-20], 0.0, 255.0).astype(int)
+                    maxm = np.clip([(pixel[0]-10), 255, 255], 0.0, 255.0).astype(int)
+                    print(minm, maxm)
+                    envHandler.setVal("BALL_HSV_MIN", (str(minm[0]) + ", " + str(minm[1]) + ", " + str(minm[2])))
+                    envHandler.setVal("BALL_HSV_MAX", (str(maxm[0]) + ", " + str(maxm[1]) + ", " + str(maxm[2])))
+                break

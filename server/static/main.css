@@ -1,0 +1,35 @@
+html, body {
+    margin: 0px;
+    padding: 0px;
+    background-color: gray;
+}
+
+canvas{
+    height: 60vh !important;
+    width: auto !important; 
+    /* border-radius: 1rem !important; */
+    border: 1px solid black;
+}
+
+/* #view {
+    height: 100px;
+    width: 100px;
+} */
+
+#cam1, #cam2 {
+    width: 71vh;
+    height: 40vh;
+    background-color: black;
+}
+
+.row {
+    display:flex; 
+    flex-direction:row;
+    position: absolute;
+    bottom: 0;
+  }
+  
+  .stack {
+    display:flex; 
+    flex-direction:column;
+  }

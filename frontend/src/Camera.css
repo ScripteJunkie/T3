@@ -1,7 +1,7 @@
 .feed {
-    width: 40rem;
-    height: 30rem;
+    width: 71vh;
+    height: 40vh;
     background-color: black;
-    position: absolute;
-    border-radius: 1rem;
+    border: 1px solid black;
+    /* border-radius: 1rem; */
 }

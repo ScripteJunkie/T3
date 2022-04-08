@@ -18,13 +18,18 @@ class Viz extends Component {
     renderer.render( scene, camera );
 
     camera.position.z = 4;
-    camera.position.y = 2.5;
-    camera.position.x = 3;
-    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.position.y = 0.5;
+    camera.position.x = 0;
     const controls = new OrbitControls( camera, renderer.domElement );
-
     controls.minDistance = 0.5;
     controls.maxDistance = 8;
+    controls.maxPolarAngle = Math.PI/2; 
+
+    controls.target = new THREE.Vector3(0, 0.6, 0);
+    controls.update();
+    // controls.lookAt(new THREE.Vector3(4000, 100, 100));
+    // camera.rotate.set = (20, 40, 0)//90 * Math.PI / 180
+    // controls.update();
 
     var overhead = new THREE.AmbientLight( {color: 0xffffff}, 1);
     scene.add( overhead );
@@ -49,7 +54,7 @@ class Viz extends Component {
     var x = -1
     var ballMesh = new THREE.SphereGeometry( 0.02 );
     // var ballMat = new THREE.MeshBasicMaterial( { color: 0xdadada } );
-    var ballMat = new THREE.MeshLambertMaterial( { color: 0xdadada, emissive: 0xdadada, emissiveIntensity: .5} );
+    var ballMat = new THREE.MeshLambertMaterial( { color: 0xed682f, emissive: 0xed682f, emissiveIntensity: .5} );
     for (var i = 0; i < 20; i++) {
       window['cube'+i] = new THREE.Mesh( ballMesh, ballMat );
       eval('cube'+i).position.x = ( x+(i/15) );
@@ -85,6 +90,11 @@ class Viz extends Component {
     }
     animate();
     window.onresize = onResize;
+    // camera.aspect = (window.innerWidth*7) / (window.innerHeight*6);
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix();
+    
+    renderer.setSize( window.innerWidth, (window.innerHeight) );
   }
 
   render() {

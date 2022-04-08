@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from pathlib import Path
 
 dotenv_path = Path('../external/.env')
@@ -13,3 +13,8 @@ def get(target):
 
 def toList(target):
     return list(map(int, os.getenv(target).split(", ")))
+
+def setVal(variable, value):
+    # os.environ.setdefault(str(variable), str(value))
+    os.environ[variable] = str(value)
+    set_key(dotenv_path, variable, os.environ[variable])
