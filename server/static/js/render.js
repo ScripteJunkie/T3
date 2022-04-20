@@ -61,7 +61,8 @@ renderer.render( scene, camera );
 }
 
 var tableMesh = new THREE.BoxGeometry( 2.74, 0.01, 1.526 );
-var tableMat = new THREE.MeshLambertMaterial( {color: 0x335f51, emissive: 0x335f51, emissiveIntensity: .5} );
+// var tableMat = new THREE.MeshLambertMaterial( {color: 0x335f51, emissive: 0x335f51, emissiveIntensity: .5} );
+var tableMat = new THREE.MeshLambertMaterial( {color: 0x29354f, emissive: 0x29354f, emissiveIntensity: .5} );
 var table = new THREE.Mesh( tableMesh, tableMat );
 table.position.y = -0.01
 table.castShadow= true;
