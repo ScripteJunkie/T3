@@ -7,11 +7,13 @@ import os
 # USER INPUT VARIABLES
 
 # Show or hide debug statements
+from cv2 import findCirclesGrid
+
 verbose = True
 # Show or hide preview images
 imgVerbose = True
 # Defining the dimensions of checkerboard
-CHECKERBOARD = (9, 15)
+CHECKERBOARD = (45, 31)
 # Directory where images are located (Directory must be located in same directory as code)
 imgDirName = 'images'
 
@@ -47,7 +49,7 @@ fileList = os.listdir(imgDir)
 # Extracting path of images stored in a given directory
 for file in fileList:
     # Make sure file is an image
-    if file.endswith('.png'):
+    if file.endswith('.jpeg'):
         img_path = os.path.join(imgDir, file)
         # Adding each image to the image list
         imgList.append(img_path)
@@ -60,6 +62,8 @@ for imagePath in imgList:
     imgH = img.shape[0]
 
     if imgVerbose:
+        
+        
         scaledDim = (int(round(imgW / 2)), int(round(imgH / 2)))
         previewImg = cv2.resize(img, scaledDim)
         cv2.imshow('img', previewImg)
@@ -83,11 +87,12 @@ for imagePath in imgList:
 
     # Find the chess board corners
     # If desired number of corners are found in the image then ret = true
-    ret, corners = cv2.findChessboardCorners(grayResult, CHECKERBOARD,
-                                            cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE)
+    ret, centers = findCirclesGrid(grayResult, (46, 32), )
+    # ret, corners = cv2.findChessboardCorners(grayResult, CHECKERBOARD,
+    #                                         cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE)
 
-    print(ret)
-    print(type(corners))
+    print(centers)
+    # print(type(corners))
 
     """
     If desired number of corner are detected,
@@ -95,9 +100,10 @@ for imagePath in imgList:
     them on the images of checker board
     """
     if ret:
+        print("Circles found!")
         objpoints.append(objp)
         # refining pixel coordinates for given 2d points.
-        corners2 = cv2.cornerSubPix(grayResult, corners, (11, 11), (-1, -1), criteria)
+        corners2 = cv2.cornerSubPix(grayResult, centers, (11, 11), (-1, -1), criteria)
 
         imgpoints.append(corners2)
 
