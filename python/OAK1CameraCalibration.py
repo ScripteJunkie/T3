@@ -1,182 +1,119 @@
-#!/usr/bin/env python
-
-import cv2
-import numpy as np
 import os
+import time
 
-# USER INPUT VARIABLES
+import numpy as np
+import cv2
+import depthai as dai
+import contextlib
+import glob2 as glob
 
-# Show or hide debug statements
-from cv2 import findCirclesGrid
+# This can be customized to pass multiple parameters
+def getPipeline(device_type):
+    # Start defining a pipeline
+    pipeline = dai.Pipeline()
 
-verbose = True
-# Show or hide preview images
-imgVerbose = True
-# Defining the dimensions of checkerboard
-CHECKERBOARD = (45, 31)
-# Directory where images are located (Directory must be located in same directory as code)
-imgDirName = 'images'
+    # Define sources
+    cam_rgb = pipeline.create(dai.node.ColorCamera)
+    stillEncoder = pipeline.create(dai.node.VideoEncoder)
 
-#######################################################################################################################
+    # For the demo, just set a larger RGB preview size for OAK-D
+    if device_type.startswith("OAK-D"):
+        cam_rgb.setPreviewSize(600, 300)
+    else:
+        cam_rgb.setVideoSize(1920, 1080)
+        cam_rgb.setPreviewSize(1440, 810)
+    cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
+    cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    cam_rgb.setInterleaved(False)
 
-curDir = os.path.dirname(__file__)
-imgDir = os.path.join(curDir, imgDirName)
+    controlIn = pipeline.create(dai.node.XLinkIn)
+    controlIn.setStreamName("control")
+    controlIn.out.link(cam_rgb.inputControl)
 
-if verbose:
-    print(
-        f'Current Directory: {curDir}\n'
-        f'Image Directory:   {imgDir}'
-    )
+    stillMjpegOut = pipeline.create(dai.node.XLinkOut)
+    stillMjpegOut.setStreamName('still')
 
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    stillEncoder = pipeline.create(dai.node.VideoEncoder)
+    stillEncoder.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
+    cam_rgb.still.link(stillEncoder.input)
+    stillEncoder.bitstream.link(stillMjpegOut.input)
 
-# Creating vector to store vectors of 3D points for each checkerboard image
-objpoints = []
-# Creating vector to store vectors of 2D points for each checkerboard image
-imgpoints = []
-# Creating vector to store file names for each checkerboard image
-imgList = []
-# Set the image directory
+    # Create output
+    xout_rgb = pipeline.create(dai.node.XLinkOut)
+    xout_rgb.setStreamName("rgb")
+    cam_rgb.preview.link(xout_rgb.input)
 
-# Defining the world coordinates for 3D points
-objp = np.zeros((1, CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
-objp[0, :, :2] = np.mgrid[0:CHECKERBOARD[0], 0:CHECKERBOARD[1]].T.reshape(-1, 2)
-prev_img_shape = None
+    return pipeline
 
-# List files in img directory
-fileList = os.listdir(imgDir)
 
-# Extracting path of images stored in a given directory
-for file in fileList:
-    # Make sure file is an image
-    if file.endswith('.jpeg'):
-        img_path = os.path.join(imgDir, file)
-        # Adding each image to the image list
-        imgList.append(img_path)
-        if verbose:
-            print(img_path)
+q_rgb_list = []
+controlQueue_list = []
 
-for imagePath in imgList:
-    img = cv2.imread(imagePath)
-    imgW = img.shape[1]
-    imgH = img.shape[0]
+# https://docs.python.org/3/library/contextlib.html#contextlib.ExitStack
+with contextlib.ExitStack() as stack:
+    device_infos = dai.Device.getAllAvailableDevices()
+    if len(device_infos) == 0:
+        raise RuntimeError("No devices found!")
+    else:
+        print("Found", len(device_infos), "devices")
 
-    if imgVerbose:
-        
-        
-        scaledDim = (int(round(imgW / 2)), int(round(imgH / 2)))
-        previewImg = cv2.resize(img, scaledDim)
-        cv2.imshow('img', previewImg)
-        cv2.waitKey(0)
-        cv2.destroyWindow('img')
+    for device_info in device_infos:
+        # Note: the pipeline isn't set here, as we don't know yet what device it is.
+        # The extra arguments passed are required by the existing overload variants
+        openvino_version = dai.OpenVINO.Version.VERSION_2021_4
+        usb2_mode = False
+        device = stack.enter_context(dai.Device(openvino_version, device_info, usb2_mode))
 
-    # (hMin = 0 , sMin = 0, vMin = 160), (hMax = 179 , sMax = 20, vMax = 255)
+        # Note: currently on POE, DeviceInfo.getMxId() and Device.getMxId() are different!
+        print("=== Connected to " + device_info.getMxId())
+        mxid = device.getMxId()
+        cameras = device.getConnectedCameras()
+        usb_speed = device.getUsbSpeed()
+        print("   >>> MXID:", mxid)
+        print("   >>> Cameras:", *[c.name for c in cameras])
+        print("   >>> USB speed:", usb_speed.name)
 
-    # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    # mask = cv2.inRange(hsv, (0, 0, 160), (179, 20, 255))
-    # result = cv2.bitwise_and(img, img, mask=mask)
-    # bgrResult = cv2.cvtColor(result, cv2.COLOR_HSV2BGR)
-    grayResult = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        device_type = "unknown"
+        if len(cameras) == 1:
+            device_type = "OAK-1"
+        elif len(cameras) == 3:
+            device_type = "OAK-D"
+        # If USB speed is UNKNOWN, assume it's a POE device
+        if usb_speed == dai.UsbSpeed.UNKNOWN: device_type += "-POE"
 
-    if imgVerbose:
-        scaledDim = (int(round(imgW / 2)), int(round(imgH / 2)))
-        previewGrayImg = cv2.resize(grayResult, scaledDim)
-        cv2.imshow('grayResult', previewGrayImg)
-        cv2.waitKey(0)
-        cv2.destroyWindow('grayResult')
+        # Get a customized pipeline based on identified device type
+        pipeline = getPipeline(device_type)
+        print("   >>> Loading pipeline for:", device_type)
+        device.startPipeline(pipeline)
 
-    # Find the chess board corners
-    # If desired number of corners are found in the image then ret = true
-    ret, centers = findCirclesGrid(grayResult, (46, 32), )
-    # ret, corners = cv2.findChessboardCorners(grayResult, CHECKERBOARD,
-    #                                         cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE)
+        controlQueue = device.getInputQueue('control')
 
-    print(centers)
-    # print(type(corners))
+        stillQueue = device.getOutputQueue('still')
 
-    """
-    If desired number of corner are detected,
-    we refine the pixel coordinates and display 
-    them on the images of checker board
-    """
-    if ret:
-        print("Circles found!")
-        objpoints.append(objp)
-        # refining pixel coordinates for given 2d points.
-        corners2 = cv2.cornerSubPix(grayResult, centers, (11, 11), (-1, -1), criteria)
+        # Output queue will be used to get the rgb frames from the output defined above
+        q_rgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+        stream_name = "rgb-" + mxid + "-" + device_type
+        # If reimplementing still frame capture, add stillQueue below
+        q_rgb_list.append((controlQueue, stillQueue, q_rgb, stream_name))
 
-        imgpoints.append(corners2)
+    while True:
+        # Adjust variables for cv2 trackbar shift (see note where trackbars defined)
+        # focus = cv2.getTrackbarPos("Focus", "Camera Controls")
+        # exposure = cv2.getTrackbarPos("Exposure", "Camera Controls") + 1
+        # iso = cv2.getTrackbarPos("ISO", "Camera Controls") + 100
+        # whiteb = cv2.getTrackbarPos("White-Balance", "Camera Controls") + 1000
 
-        # Draw and display the corners
-        if imgVerbose:
-            cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
-            cv2.imshow('img', img)
-            cv2.waitKey(0)
+        # If reimplementing still frame capture, add stillQueue
+        for controlQueue, stillQueue, q_rgb, stream_name in q_rgb_list:
+            in_rgb = q_rgb.tryGet()
+            if in_rgb is not None:
+                cv2.imshow(stream_name, in_rgb.getCvFrame())
 
-    if imgVerbose:
-        cv2.imshow('img', img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if cv2.waitKey(1) == ord('q'):
+            break
 
-h, w = img.shape[:2]
-
-"""
-Performing camera calibration by 
-passing the value of known 3D points (objpoints)
-and corresponding pixel coordinates of the 
-detected corners (imgpoints)
-"""
-
-size = (img.shape[1], img.shape[0])
-print(size)
-
-# Obtaining camera calibration matrices
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, size, None, None)
-
-if verbose:
-    print(
-        f'Camera matrix:\n'
-        f'{mtx}\n'
-        f'dist:\n'
-        f'{dist}\n'
-        f'rvecs:\n'
-        f'{rvecs}\n'
-        f'tvecs:\n'
-        f'{tvecs}'
-    )
-
-for imagePath in imgList:
-    img = cv2.imread(imagePath)
-    cv2.line(img, (0, 0), (img.shape[1], img.shape[0]), (0, 255, 0), thickness=4)
-    newCameraMtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
-
-    # undistort
-    dst = cv2.undistort(img, mtx, dist, None, newCameraMtx)
-    # crop the image
-    x, y, w, h = roi
-    img = img[y:y+h, x:x+w]
-    dst = dst[y:y+h, x:x+w]
-
-    scaledDim = (int(round(img.shape[1] / 2)), int(round(img.shape[0] / 2)))
-
-    combinedImg = cv2.addWeighted(img, 0.4, dst, 0.1, 0)
-    # combinedScaled = cv2.resize(combinedImg, scaledDim)
-
-    # scaledImg = cv2.resize(img, scaledDim)
-    # scaledDst = cv2.resize(dst, scaledDim)
-
-    if imgVerbose:
-        cv2.imshow('Combined Image', combinedImg)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-testImg = cv2.imread(r'C:\Users\raman\PycharmProjects\T3\python\Screenshot 2022-03-24 15-36-46.png')
-newCameraMtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
-fixedTestImg = cv2.undistort(testImg, mtx, dist, None, newCameraMtx)
-
-cv2.imshow('Fixed Image', fixedTestImg)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-cv2.imwrite('savedTestImage.png', fixedTestImg)
-
+        if cv2.waitKey(1) == ord('1'):
+            ctrl = dai.CameraControl()
+            ctrl.setManualFocus(114)
+            ctrl.setManualExposure(1500, 1600)
+            ctrl.setManualWhiteBalance(2500)

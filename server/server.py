@@ -5,7 +5,21 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 # Default cache expiration is 12 hou
 @app.route('/')
 def main():
    return render_template('main.html')
-    
+
 if __name__ == '__main__':
-   app.run(host='0.0.0.0', port=8090)
-   # app.run(debug=True)
+   app.run(host='0.0.0.0', port=8000)
+   app.run(debug=True)
+#
+# #Use to create local host
+# import http.server
+# import socketserver
+#
+# PORT = 8000
+#
+# Handler = http.server.SimpleHTTPRequestHandler
+# Handler.extensions_map.update({
+#       ".js": "application/javascript",
+# });
+#
+# httpd = socketserver.TCPServer(("", PORT), Handler)
+# httpd.serve_forever()
