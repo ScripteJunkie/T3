@@ -1,7 +1,7 @@
 var src1 = document.createElement("img");
 var src2 = document.createElement("img");
-src1.src = "http://localhost:8091/";
-src2.src = "http://localhost:8092/";
+src1.src = "http://129.21.124.68:8091/";
+src2.src = "http://129.21.124.68:8092/";
 
 var cam1 = document.getElementById("cam1");
 var cam2 = document.getElementById("cam2");

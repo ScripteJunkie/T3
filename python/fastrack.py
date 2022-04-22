@@ -65,26 +65,31 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 # start TCP data server
-server_TCP1 = socketserver.TCPServer(('localhost', (1140+1)), TCPServerRequest)
+server_TCP1 = socketserver.TCPServer(('0.0.0.0', (1140+1)), TCPServerRequest)
 th = threading.Thread(target=server_TCP1.serve_forever)
 th.daemon = True
 th.start()
 
-server_TCP2 = socketserver.TCPServer(('localhost', (1140+2)), TCPServerRequest)
+server_TCP2 = socketserver.TCPServer(('0.0.0.0', (1140+2)), TCPServerRequest)
 th2 = threading.Thread(target=server_TCP2.serve_forever)
 th2.daemon = True
 th2.start()
 
-# start MJPEG HTTP Server
-server_HTTP1 = ThreadedHTTPServer(('localhost', 8090+1), VideoStreamHandler)
-th3 = threading.Thread(target=server_HTTP1.serve_forever)
+server_TCP3 = socketserver.TCPServer(('0.0.0.0', (1140)), TCPServerRequest)
+th3 = threading.Thread(target=server_TCP3.serve_forever)
 th3.daemon = True
 th3.start()
 
-server_HTTP2 = ThreadedHTTPServer(('localhost', 8090+2), VideoStreamHandler)
-th4 = threading.Thread(target=server_HTTP2.serve_forever)
+# start MJPEG HTTP Server
+server_HTTP1 = ThreadedHTTPServer(('0.0.0.0', 8090+1), VideoStreamHandler)
+th4 = threading.Thread(target=server_HTTP1.serve_forever)
 th4.daemon = True
 th4.start()
+
+server_HTTP2 = ThreadedHTTPServer(('0.0.0.0', 8090+2), VideoStreamHandler)
+th5 = threading.Thread(target=server_HTTP2.serve_forever)
+th5.daemon = True
+th5.start()
 
 # This can be customized to pass multiple parameters
 def getPipeline(device_type):
@@ -230,6 +235,9 @@ if __name__ == '__main__':
             # controlQueue = device.getInputQueue('control')
             q_rgb_list.append((q_rgb, stream_name))
 
+        global coords
+        coords = '0, 0, 0'
+
         while True:
             prev_frame_time = time.time()
             in_rgb1 = q_rgb_list[0][0].tryGet()
@@ -248,5 +256,7 @@ if __name__ == '__main__':
                 server_HTTP2.frametosend = ret2[0]
                 server_TCP1.datatosend = str(ret1[1])
                 server_TCP2.datatosend = str(ret2[1])
+                server_TCP3.datatosend = coords
                 if ret1[1][1] is not None and ret2[1][1] is not None:
+                    coords = str(to3D(ret1[1], ret2[1]))
                     print(to3D(ret1[1], ret2[1]))
