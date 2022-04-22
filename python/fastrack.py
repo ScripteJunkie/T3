@@ -240,8 +240,12 @@ if __name__ == '__main__':
 
         while True:
             prev_frame_time = time.time()
-            in_rgb1 = q_rgb_list[0][0].tryGet()
-            in_rgb2 = q_rgb_list[1][0].tryGet()
+            if q_rgb_list[0][1] == "rgb-14442C1001D947D700-OAK-1": #14442C10313247D700
+                in_rgb1 = q_rgb_list[0][0].tryGet()
+                in_rgb2 = q_rgb_list[1][0].tryGet()
+            else:
+                in_rgb1 = q_rgb_list[1][0].tryGet()
+                in_rgb2 = q_rgb_list[0][0].tryGet()
             if in_rgb1 is not None and in_rgb2 is not None:
                 # ctrl1 = dai.CameraControl()
                 # ctrl1.setManualExposure(120, 1600)
