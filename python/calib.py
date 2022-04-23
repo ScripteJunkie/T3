@@ -169,6 +169,10 @@ with contextlib.ExitStack() as stack:
                     minm = np.clip([(pixel[0]-20), (pixel[1]-100), (pixel[2])-20], 0.0, 255.0).astype(int)
                     maxm = np.clip([(pixel[0]-10), 255, 255], 0.0, 255.0).astype(int)
                     print(minm, maxm)
-                    envHandler.setVal("BALL_HSV_MIN", (str(minm[0]) + ", " + str(minm[1]) + ", " + str(minm[2])))
-                    envHandler.setVal("BALL_HSV_MAX", (str(maxm[0]) + ", " + str(maxm[1]) + ", " + str(maxm[2])))
+                    if (stream_name == "rgb-14442C1001D947D700-OAK-1"): #top
+                        envHandler.setVal("BALL2_HSV_MIN", (str(minm[0]) + ", " + str(minm[1]) + ", " + str(minm[2])))
+                        envHandler.setVal("BALL2_HSV_MAX", (str(maxm[0]) + ", " + str(maxm[1]) + ", " + str(maxm[2])))
+                    else:
+                        envHandler.setVal("BALL1_HSV_MIN", (str(minm[0]) + ", " + str(minm[1]) + ", " + str(minm[2])))
+                        envHandler.setVal("BALL1_HSV_MAX", (str(maxm[0]) + ", " + str(maxm[1]) + ", " + str(maxm[2])))
                 break

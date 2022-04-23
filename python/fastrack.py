@@ -2,31 +2,22 @@
 import cv2
 import depthai as dai
 import numpy as np
-import time
 import imutils
 from collections import deque
 from envHandler import toList
 import csv
-import argparse
 import ray
-import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import BytesIO
-from time import sleep
-from socketserver import ThreadingMixIn
-import threading
+from time import sleep, time
+from socketserver import ThreadingMixIn, BaseRequestHandler, TCPServer
+from threading import Thread
 from PIL import Image
-import contextlib
-from math import log
+from contextlib import ExitStack
 
 ray.init()
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument('-cam', '--camera', type=int, help="Index of camera. (1 or 2)")
-# args = parser.parse_args()
-# camNum = args.camera
-
-class TCPServerRequest(socketserver.BaseRequestHandler):
+class TCPServerRequest(BaseRequestHandler):
     def handle(self):
         # Handle is called each time a client is connected
         # When OpenDataCam connects, do not return - instead keep the connection open and keep streaming data
@@ -65,29 +56,29 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 # start TCP data server
-server_TCP1 = socketserver.TCPServer(('0.0.0.0', (1140+1)), TCPServerRequest)
-th = threading.Thread(target=server_TCP1.serve_forever)
+server_TCP1 = TCPServer(('0.0.0.0', (1140+1)), TCPServerRequest)
+th = Thread(target=server_TCP1.serve_forever)
 th.daemon = True
 th.start()
 
-server_TCP2 = socketserver.TCPServer(('0.0.0.0', (1140+2)), TCPServerRequest)
-th2 = threading.Thread(target=server_TCP2.serve_forever)
+server_TCP2 = TCPServer(('0.0.0.0', (1140+2)), TCPServerRequest)
+th2 = Thread(target=server_TCP2.serve_forever)
 th2.daemon = True
 th2.start()
 
-server_TCP3 = socketserver.TCPServer(('0.0.0.0', (1140)), TCPServerRequest)
-th3 = threading.Thread(target=server_TCP3.serve_forever)
+server_TCP3 = TCPServer(('0.0.0.0', (1140)), TCPServerRequest)
+th3 = Thread(target=server_TCP3.serve_forever)
 th3.daemon = True
 th3.start()
 
 # start MJPEG HTTP Server
 server_HTTP1 = ThreadedHTTPServer(('0.0.0.0', 8090+1), VideoStreamHandler)
-th4 = threading.Thread(target=server_HTTP1.serve_forever)
+th4 = Thread(target=server_HTTP1.serve_forever)
 th4.daemon = True
 th4.start()
 
 server_HTTP2 = ThreadedHTTPServer(('0.0.0.0', 8090+2), VideoStreamHandler)
-th5 = threading.Thread(target=server_HTTP2.serve_forever)
+th5 = Thread(target=server_HTTP2.serve_forever)
 th5.daemon = True
 th5.start()
 
@@ -115,18 +106,26 @@ with open('coord.csv', 'w', encoding='UTF8') as f:
 
 q_rgb_list = []
 controlQueue_list = []
-prev_frame_time = 0
-new_frame_time = 0
 frame = None
 outputFrame = None
 pts1 = deque(maxlen=64)
 pts2 = deque(maxlen=64)
 
+kalman1 = cv2.KalmanFilter(4, 2)
+kalman1.measurementMatrix = np.array([[1, 0, 0, 0],[0, 1, 0, 0]], np.float32)
+kalman1.transitionMatrix = np.array([[1, 0, 1, 0],[0, 1, 0, 1],[0, 0, 1, 0],[0, 0, 0, 1]], np.float32)
+kalman2 = cv2.KalmanFilter(4, 2)
+kalman2.measurementMatrix = np.array([[1, 0, 0, 0],[0, 1, 0, 0]], np.float32)
+kalman2.transitionMatrix = np.array([[1, 0, 1, 0],[0, 1, 0, 1],[0, 0, 1, 0],[0, 0, 0, 1]], np.float32)
+# kalman.processNoiseCov = np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0],[0, 0, 0, 1]], np.float32) * 0.03
+# measurement = np.array((2, 1), np.float32)
+# prediction = np.zeros((2, 1), np.float32)
+
+
 @ray.remote
 def proc(frame, num):
-    # prev_frame_time = time.time()
-    # cv2.imshow("rgb", frame)
-    img = imutils.resize(frame, width=1920)
+    # img = imutils.resize(frame, width=1920)
+    img = frame
     blurred = cv2.GaussianBlur(img, (11, 11), 0)
     hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
     # construct a mask for the color "green", then perform
@@ -140,9 +139,7 @@ def proc(frame, num):
         mask = cv2.inRange(hsv, np.array(toList('BALL2_HSV_MIN'), dtype=np.uint8), np.array(toList('BALL2_HSV_MAX'), dtype=np.uint8))
     mask = cv2.erode(mask, None, iterations=2)
     mask = cv2.dilate(mask, None, iterations=2)
-        # find contours in the mask and initialize the current
-    # (x, y) center of the ball
-    # cv2.imshow("Mask", mask)
+    # find contours in the mask and initialize the current
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     center = None
@@ -161,16 +158,12 @@ def proc(frame, num):
         if 200 > radius > 5: 
             # draw the circle and centroid on the frame,
             # then update the list of tracked points
-            cv2.circle(img, (int(x), int(y)), int(radius), (0, 255, 255), 2)
+            # cv2.circle(img, (int(x), int(y)), int(radius), (0, 255, 255), 2)
             cv2.circle(img, center, 10, (0, 0, 255), -1)
                 # write the data
             with open('coord.csv', 'a', encoding='UTF8') as f:
                 writer = csv.writer(f)
-                writer.writerow([x, y, time.time()])
-                # if num == 2:
-                #     server_TCP2.datatosend = str([x, y, time.time()])
-                # else:
-                #     server_TCP1.datatosend = str([x, y, time.time()])
+                writer.writerow([x, y, time()])
     # update the points queue
     pts.appendleft(center)
         # loop over the set of tracked points
@@ -181,11 +174,8 @@ def proc(frame, num):
         # otherwise, compute the thickness of the line and draw the connecting lines
         thickness = int(np.sqrt(64 / float(i + 1)) * 2.5)
         cv2.line(img, pts[i - 1], pts[i], (0, 0, 255), thickness)
-    # show the frame to our screen
-    # cv2.imshow("Frame", img)
-    # cv2.imshow("fr", frame)
     outputFrame = cv2.resize(img, (1280, 720), interpolation = cv2.INTER_LANCZOS4)
-    return outputFrame, [x, y, time.time()]
+    return outputFrame, [x, y, time()]
 
 def to3D(side, top):
     # topview table length: 1780px, width: 971px, px to inch: 0.00525437124
@@ -205,7 +195,7 @@ def to3D(side, top):
 
 if __name__ == '__main__':
     # Connect to device and start pipeline
-    with contextlib.ExitStack() as stack:
+    with ExitStack() as stack:
         device_infos = dai.Device.getAllAvailableDevices()
         for device_info in device_infos:
             openvino_version = dai.OpenVINO.Version.VERSION_2021_4
@@ -232,7 +222,6 @@ if __name__ == '__main__':
         coords = '0, 0, 0'
 
         while True:
-            prev_frame_time = time.time()
             if q_rgb_list[0][1] == "rgb-14442C1001D947D700-OAK-1": #14442C10313247D700
                 in_rgb1 = q_rgb_list[0][0].tryGet()
                 in_rgb2 = q_rgb_list[1][0].tryGet()
@@ -257,4 +246,8 @@ if __name__ == '__main__':
                 if ret1[1][1] is not None and ret2[1][1] is not None:
                     final = to3D(ret1[1], ret2[1])
                     coords = str(final)[1:-1]
-                    print(str(final)[1:-1])
+                    measured = np.array([ret1[1]])
+                    kalman1.correct(measured)
+                    predicted = kalman1.predict()
+                    print(ret1[1], predicted)
+                    # print(str(final)[1:-1])

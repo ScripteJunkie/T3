@@ -7,9 +7,11 @@ import math
 
 # p = [[0.571, 2.577], [6.269, 5.121], [10.267, 4.241], [5, 1.45]]
 # p1 = [[-1, -1], [3, 3], [11, 2], [7, -2]]
-p1 = [[603, 54], [1478, 558], [1043, 726], [147, 471]]
-p2 = [[-703, 94], [-1478, 558], [-1093, 626], [-147, 471]]
-# p2 = [[300, -500], [-700, 0], [-200, 200], [800, -300]]
+# p1 = [[603, 54], [1478, 558], [1043, 726], [147, 471]]
+p1 = [[141,637], [986,120], [1446,491], [631,779]]
+p2 = [[913,47], [1755,512], [1281,670], [477,426]]
+# p2 = [[-703, 94], [-1478, 558], [-1093, 626], [-147, 471]]
+# p2 = [[-800, -500], [-200, 200], [200, 200], [800, -500]]
 p1Fin = [[-2.5, -4.5], [-2.5, 4.5], [2.5, 4.5], [2.5, -4.5]]
 p2Fin = [[-2.5, -4.5], [-2.5, 4.5], [2.5, 4.5], [2.5, -4.5]]
 p1Tran = []
@@ -127,7 +129,7 @@ def eqtn(list, point1, point2, point3, point4):
 # Transforms x, y, z points using M transform matrix
 def pTransform(M, x, y, z):
     F = np.reshape(np.array((x, y, z)), (3,1))
-    # T = (M[0,0]*F[0][0] + M[0,1]*F[0][1] + M[0,2]*F[0][2]), (M[1,0]*F[0][0] + M[1,1]*F[0][1] + M[1,2]*F[0][2]), (M[2,0]*F[0][0] + M[2,1]*F[0][1] + M[2,2]*F[0][2])
+    # T = (M[0,0]*F[0] + M[0,1]*F[1] + M[0,2]*F[2]), (M[1,0]*F[0] + M[1,1]*F[1] + M[1,2]*F[2]), (M[2,0]*F[0,0] + M[2,1]*F[1] + M[2,2]*F[2])
     T = np.matmul(M, F)
     return T
 
@@ -158,7 +160,8 @@ x = np.linspace(-2500, 2500, 1000)
 center = (p1[0][0]+p1[1][0]+p1[2][0]+p1[3][0])/4, (p1[0][1]+p1[1][1]+p1[2][1]+p1[3][1])/4
 
 # Test point
-test1 = [11, 7]
+# test1 = [11, 7]
+test1 = [428,518]
 # Translated around center
 test1 = [test1[0]-center[0], test1[1]-center[1]]
 
@@ -200,7 +203,8 @@ print("M1: ", type(M1), '\n', M1.shape, '\n', M1, '\n\n', "Test: ", type(M1Test)
 
 center2 = (p2[0][0]+p2[1][0]+p2[2][0]+p2[3][0])/4, (p2[0][1]+p2[1][1]+p2[2][1]+p2[3][1])/4
 
-test2 = [1, 8]
+# test2 = [1, 8]
+test2 = [1453, 402]
 test2 = [test2[0]-center2[0], test2[1]-center2[1]]
 
 # Camera 2
@@ -258,6 +262,11 @@ for m in range(len(p1Tran)):
 plt.plot(x, line(pChg, 2, 3, x), color="white", linewidth="0.5")
 # plt.plot(x, line(pChg, 3, 4, x)) # Isn't function when in top view
 plt.plot(x, line(pChg, 1, 4, x), color="white", linewidth="0.5")
+
+# plt.plot(x, line(pChg2, 1, 2, x)) # Isn't function when in top view
+plt.plot(x, line(pChg2, 2, 3, x), color="white", linewidth="0.5")
+# plt.plot(x, line(pChg2, 3, 4, x)) # Isn't function when in top view
+plt.plot(x, line(pChg2, 1, 4, x), color="white", linewidth="0.5")
 
 # On a fully transformed top view there are only vertical and horizontal lines, so need to plot x=? with a vertical line.
 plt.axvline(x=-2.5, color="yellow", linewidth="0.5")
