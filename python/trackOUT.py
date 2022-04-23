@@ -3,6 +3,7 @@ import cv2
 import depthai as dai
 import numpy as np
 import time
+import math
 
 # Create pipeline
 pipeline = dai.Pipeline()
@@ -131,14 +132,14 @@ with dai.Device(pipeline) as device:
                 ((x, y), radius) = cv2.minEnclosingCircle(contours[0])
                 # M = cv2.moments(contours[0])
                 # center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                center = (int(x), int(y))
+                center = (int(x), int(y), time.time())
                 radius = int(radius)
                 # only proceed if the radius meets a minimum size
                 if radius > 6:
                     # draw the circle and centroid on the frame,
                     # then update the list of tracked points
                     cv2.circle(tracked, (int(x), int(y)), int(radius), (0, 255, 255), 2)
-                    cv2.circle(tracked, center, 5, (0, 0, 255), -1)
+                    cv2.circle(tracked, (center[0], center[1]), 5, (0, 0, 255), -1)
                     points.append(center)
                 # # if any contours are found we take the biggest contour and get bounding box
                 # (x_min, y_min, box_width, box_height) = cv2.boundingRect(contours[0])
@@ -178,6 +179,14 @@ with dai.Device(pipeline) as device:
             # we will be subtracting it to get more accurate result
             # fps = (1 / (1+new_frame_time - prev_frame_time))
             prev_frame_time = new_frame_time
+            try:
+                if len(points) > 0:
+                    vel = 0.006 * math.sqrt((points[len(points)-1][0] - points[len(points)-2][0])**2 + (points[len(points)-1][1] - points[len(points)-2][1])**2)/(points[len(points)-1][2] - points[len(points)-2][2])
+                    cv2.putText(tracked, (str(round(vel, 4))+" ft/s"), (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 100, 0), 3, cv2.LINE_AA)
+            except ZeroDivisionError:
+                vel = 0.000
+                cv2.putText(tracked, ("0.000 ft/s"), (7, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (100, 100, 0), 3, cv2.LINE_AA)
+
 
             # converting the fps into integer
             # fps = int(fps)
