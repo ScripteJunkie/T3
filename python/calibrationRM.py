@@ -6,13 +6,14 @@ import cv2
 import depthai as dai
 import contextlib
 import glob2 as glob
-from threading import Thread
+import threading
 # first do: pip install future
 # tkinter should work after this
 import tkinter as tk
 
 # Enable / Disable debug statements
 verbose = True
+doWhileLoop = True
 
 # currExp = 1
 # currISO = 100
@@ -90,38 +91,44 @@ verbose = True
 
 
 class cameraOAK:
+
+    # ISSUE BELOW: VARIABLE DEVICE NEVER USED SO IT IS ONLY CREATING TWO INSTANCES OF THE SAME CAMERA,
+    # TOO TIRED TO FIX, FIX FIRST THING TOMORROW!
+
     def __init__(self, device):
-        self.device = device
         global doWhileLoop
+
+        self.device = device
 
         # Start defining a pipeline
         self.pipeline = dai.Pipeline()
 
         # Define sources
         self.cam_rgb = self.pipeline.create(dai.node.ColorCamera)
+        self.xout_rgb = self.pipeline.create(dai.node.XLinkOut)
+
+        self.xout_rgb.setStreamName("rgb")
 
         # Define source sizes
         self.cam_rgb.setVideoSize(1920, 1080)
         self.cam_rgb.setPreviewSize(1440, 810)
-        self.cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
         self.cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         self.cam_rgb.setInterleaved(False)
+        self.cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
-        self.controlIn = self.pipeline.create(dai.node.XLinkIn)
-        self.controlIn.setStreamName("control")
-        self.controlIn.out.link(self.cam_rgb.inputControl)
-
-        self.stillMjpegOut = self.pipeline.create(dai.node.XLinkOut)
-        self.stillMjpegOut.setStreamName('still')
-
-        self.stillEncoder = self.pipeline.create(dai.node.VideoEncoder)
-        self.stillEncoder.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
-        self.cam_rgb.still.link(self.stillEncoder.input)
-        self.stillEncoder.bitstream.link(self.stillMjpegOut.input)
+        # self.controlIn = self.pipeline.create(dai.node.XLinkIn)
+        # self.controlIn.setStreamName("control")
+        # self.controlIn.out.link(self.cam_rgb.inputControl)
+        #
+        # self.stillMjpegOut = self.pipeline.create(dai.node.XLinkOut)
+        # self.stillMjpegOut.setStreamName('still')
+        #
+        # self.stillEncoder = self.pipeline.create(dai.node.VideoEncoder)
+        # self.stillEncoder.setDefaultProfilePreset(1, dai.VideoEncoderProperties.Profile.MJPEG)
+        # self.cam_rgb.still.link(self.stillEncoder.input)
+        # self.stillEncoder.bitstream.link(self.stillMjpegOut.input)
 
         # Create output
-        self.xout_rgb = self.pipeline.create(dai.node.XLinkOut)
-        self.xout_rgb.setStreamName("rgb")
         self.cam_rgb.preview.link(self.xout_rgb.input)
 
         self.mxid = None
@@ -145,20 +152,19 @@ class cameraOAK:
         self.in_rgb = None
 
     def runCamera(self):
-        self.device.startPipeline(self.pipeline)
+        with dai.Device(self.pipeline) as device:
+            # self.controlQueue = device.getInputQueue('control')
+            #
+            # self.stillQueue = device.getOutputQueue('still')
 
-        self.controlQueue = self.device.getInputQueue('control')
+            # Output queue will be used to get the rgb frames from the output defined above
+            self.q_rgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+            self.stream_name = "rgb-" + self.mxid + "-OAK-1"
 
-        self.stillQueue = self.device.getOutputQueue('still')
-
-        # Output queue will be used to get the rgb frames from the output defined above
-        self.q_rgb = self.device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
-        self.stream_name = "rgb-" + self.mxid + "-OAK-1"
-
-        while doWhileLoop:
-            self.in_rgb = self.q_rgb.tryGet()
-            if self.in_rgb is not None:
-                cv2.imshow(self.stream_name, self.in_rgb.getCvFrame())
+            while doWhileLoop:
+                self.in_rgb = self.q_rgb.tryGet()
+                if self.in_rgb is not None:
+                    cv2.imshow(self.stream_name, self.in_rgb.getCvFrame())
 
 
 deviceList = []
@@ -166,13 +172,13 @@ deviceList = []
 devices = dai.Device.getAllAvailableDevices()
 
 for device in devices:
-    deviceList.append(devices)
+    deviceList.append(device)
 
 cam1 = cameraOAK(deviceList[0])
 cam2 = cameraOAK(deviceList[1])
 
-c1Thread = Thread(target=cam1.runCamera())
-c2Thread = Thread(target=cam2.runCamera())
+c1Thread = threading.Thread(target=cam1.runCamera())
+c2Thread = threading.Thread(target=cam2.runCamera())
 
 c1Thread.start()
 c2Thread.start()

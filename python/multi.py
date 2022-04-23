@@ -44,6 +44,8 @@ with contextlib.ExitStack() as stack:
         usb2_mode = False
         device = stack.enter_context(dai.Device(openvino_version, device_info, usb2_mode))
 
+        print(f'DEVICE: {device}')
+
         # Note: currently on POE, DeviceInfo.getMxId() and Device.getMxId() are different!
         print("=== Connected to " + device_info.getMxId())
         mxid = device.getMxId()
