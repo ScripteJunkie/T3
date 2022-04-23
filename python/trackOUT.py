@@ -62,9 +62,9 @@ with dai.Device(pipeline) as device:
     # Output queue will be used to get the rgb frames from the output defined above
     qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
     controlQueue = device.getInputQueue('control')
-    testChangeExp(8254)
-    testChangeIso(592)
-    testChangeF(8)
+    # testChangeExp(8254)
+    # testChangeIso(592)
+    # testChangeF(8)
 
 
     first_iter = True
