@@ -13,8 +13,12 @@ pipeline = dai.Pipeline()
 # Define source and output
 camRgb = pipeline.createColorCamera()
 xoutRgb = pipeline.createXLinkOut()
+controlIn = pipeline.createXLinkIn()
+
 
 xoutRgb.setStreamName("rgb")
+controlIn.setStreamName('control')
+
 
 # Properties
 camRgb.setPreviewSize(1920, 1080)
@@ -22,10 +26,30 @@ camRgb.setInterleaved(False)
 camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
 # Linking
+controlIn.out.link(camRgb.inputControl)
 camRgb.preview.link(xoutRgb.input)
 
 # Create a window named trackbars.
 cv2.namedWindow("Trackbars")
+
+currExp = 1
+currISO = 100
+
+def testChangeExp(x):
+    global currExp, currISO
+    currExp = x + 1
+    ctrl = dai.CameraControl()
+    ctrl.setManualExposure(currExp, currISO)
+    controlQueue.send(ctrl)
+    print("Exp: ", currExp)
+
+def testChangeIso(x):
+    global currExp, currISO
+    currISO = x + 100
+    ctrl = dai.CameraControl()
+    ctrl.setManualExposure(currExp, currISO)
+    controlQueue.send(ctrl)
+    print("ISO: ", currISO)
 
 # Now create 6 trackbars that will control the lower and upper range of 
 # H,S and V channels. The Arguments are like this: Name of trackbar, 
@@ -37,6 +61,10 @@ cv2.createTrackbar("L - V", "Trackbars", 0, 255, nothing)
 cv2.createTrackbar("U - H", "Trackbars", 179, 179, nothing)
 cv2.createTrackbar("U - S", "Trackbars", 255, 255, nothing)
 cv2.createTrackbar("U - V", "Trackbars", 255, 255, nothing)
+# Exposure = [1, 33000]
+cv2.createTrackbar('Exposure', 'Trackbars', 0, 32999, testChangeExp)
+# ISO = [100, 1600]
+cv2.createTrackbar('ISO', 'Trackbars', 0, 1500, testChangeIso)
 
 # Connect to device and start pipeline
 with dai.Device(pipeline) as device:
@@ -47,6 +75,9 @@ with dai.Device(pipeline) as device:
 
     # Output queue will be used to get the rgb frames from the output defined above
     qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+    controlQueue = device.getInputQueue('control')
+    testChangeExp(1000)
+    testChangeIso(1600)
 
     first_iter = True
     backSub = cv2.createBackgroundSubtractorMOG2()
