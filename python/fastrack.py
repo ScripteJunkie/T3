@@ -158,7 +158,7 @@ def proc(frame, num):
         M = cv2.moments(c)
         center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
         # only proceed if the radius meets a minimum size
-        if 200 > radius > 1:
+        if 200 > radius > 5: 
             # draw the circle and centroid on the frame,
             # then update the list of tracked points
             cv2.circle(img, (int(x), int(y)), int(radius), (0, 255, 255), 2)
@@ -184,14 +184,7 @@ def proc(frame, num):
     # show the frame to our screen
     # cv2.imshow("Frame", img)
     # cv2.imshow("fr", frame)
-    outputFrame = img#cv2.resize(img, (1280, 720), interpolation = cv2.INTER_LANCZOS4)
-    # if num == 1:
-    #     server_HTTP1.frametosend = outputFrame
-    # else:
-    #     server_HTTP2.frametosend = outputFrame
-    # new_frame_time = time.time()
-    # fps = 1/(new_frame_time-prev_frame_time)
-    # print(str(round(new_frame_time-prev_frame_time, 3)* 1000) + "ms " + str(round(fps, 3)) + "fps" )
+    outputFrame = cv2.resize(img, (1280, 720), interpolation = cv2.INTER_LANCZOS4)
     return outputFrame, [x, y, time.time()]
 
 def to3D(side, top):
@@ -262,5 +255,6 @@ if __name__ == '__main__':
                 server_TCP2.datatosend = str(ret2[1])
                 server_TCP3.datatosend = coords
                 if ret1[1][1] is not None and ret2[1][1] is not None:
-                    coords = str(to3D(ret1[1], ret2[1]))
-                    print(to3D(ret1[1], ret2[1]))
+                    final = to3D(ret1[1], ret2[1])
+                    coords = str(final)[1:-1]
+                    print(str(final)[1:-1])
