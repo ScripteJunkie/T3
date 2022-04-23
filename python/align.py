@@ -21,7 +21,7 @@ controlIn.setStreamName('control')
 
 
 # Properties
-camRgb.setPreviewSize(1920, 1080)
+camRgb.setPreviewSize(960, 540)
 camRgb.setInterleaved(False)
 camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
@@ -76,8 +76,8 @@ with dai.Device(pipeline) as device:
     # Output queue will be used to get the rgb frames from the output defined above
     qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
     controlQueue = device.getInputQueue('control')
-    testChangeExp(1000)
-    testChangeIso(1600)
+    # testChangeExp(1500)
+    # testChangeIso(1600)
 
     first_iter = True
     backSub = cv2.createBackgroundSubtractorMOG2()

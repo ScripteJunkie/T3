@@ -3,7 +3,7 @@
 import cv2
 import depthai as dai
 import contextlib
-from matplotlib.pyplot import draw
+# from matplotlib.pyplot import draw
 import numpy as np
 import sys
 sys.path.append('../')
