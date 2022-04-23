@@ -10,7 +10,9 @@ pipeline = dai.Pipeline()
 # Define source and output
 camRgb = pipeline.createColorCamera()
 xoutRgb = pipeline.createXLinkOut()
+controlIn = pipeline.createXLinkIn()
 
+controlIn.setStreamName('control')
 xoutRgb.setStreamName("rgb")
 
 # Properties
@@ -19,6 +21,7 @@ camRgb.setInterleaved(False)
 camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 
 # Linking
+controlIn.out.link(camRgb.inputControl)
 camRgb.preview.link(xoutRgb.input)
 
 # used to record the time when we processed last frame
@@ -26,6 +29,28 @@ prev_frame_time = 0
  
 # used to record the time at which we processed current frame
 new_frame_time = 0
+
+currExp = 1
+currISO = 100
+
+def testChangeExp(x):
+    global currExp, currISO
+    currExp = x + 1
+    ctrl = dai.CameraControl()
+    ctrl.setManualExposure(currExp, currISO)
+    controlQueue.send(ctrl)
+
+def testChangeIso(x):
+    global currExp, currISO
+    currISO = x + 100
+    ctrl = dai.CameraControl()
+    ctrl.setManualExposure(currExp, currISO)
+    controlQueue.send(ctrl)
+
+def testChangeF(x):
+    ctrl = dai.CameraControl()
+    ctrl.setManualFocus(x)
+    controlQueue.send(ctrl)
 
 # Connect to device and start pipeline
 with dai.Device(pipeline) as device:
@@ -36,6 +61,11 @@ with dai.Device(pipeline) as device:
 
     # Output queue will be used to get the rgb frames from the output defined above
     qRgb = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+    controlQueue = device.getInputQueue('control')
+    testChangeExp(8254)
+    testChangeIso(592)
+    testChangeF(8)
+
 
     first_iter = True
     backSub = cv2.createBackgroundSubtractorMOG2()
@@ -72,11 +102,15 @@ with dai.Device(pipeline) as device:
             # change it according to your need !
             # lower_white = np.array([133, 0, 0], dtype=np.uint8)
             # upper_white = np.array([179, 255, 115], dtype=np.uint8)
-            lower_white = np.array([5, 109, 187], dtype=np.uint8)
-            upper_white = np.array([30, 255, 255], dtype=np.uint8)
+            lower_orange = np.array([5, 109, 187], dtype=np.uint8)
+            upper_orange = np.array([30, 255, 255], dtype=np.uint8)
+            lower_green = np.array([40, 55, 150], dtype=np.uint8)
+            upper_green = np.array([179, 160, 255], dtype=np.uint8)
 
             # Threshold the HSV image to get only white colors
-            mask = cv2.inRange(hsv, lower_white, upper_white)
+            maskg = cv2.inRange(hsv, lower_green, upper_green)
+            masko = cv2.inRange(hsv, lower_orange, upper_orange)
+            mask = cv2.bitwise_or(maskg,masko)
             mask = cv2.erode(mask, None, iterations=2)
             mask = cv2.dilate(mask, None, iterations=2)
 
@@ -95,11 +129,10 @@ with dai.Device(pipeline) as device:
                 center = (int(x),int(y))
                 radius = int(radius)
                 # only proceed if the radius meets a minimum size
-                if radius > 10:
+                if radius > 6:
                     # draw the circle and centroid on the frame,
                     # then update the list of tracked points
-                    cv2.circle(tracked, (int(x), int(y)), int(radius),
-                               (0, 255, 255), 2)
+                    cv2.circle(tracked, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                     cv2.circle(tracked, center, 5, (0, 0, 255), -1)
                     points.append(center)
                 # # if any contours are found we take the biggest contour and get bounding box
@@ -115,13 +148,16 @@ with dai.Device(pipeline) as device:
 
             # for i in range(1, len(points)):
             # tracked = framed.copy()
+            if len(points) > 21:
+                del points[0]
+
 
             for i in range(1, len(points)):
                 # print(points[i])
                 if (0 < points[i][0] < 1920 and 0 < points[i][1] < 1080):
                     cv2.circle(tracked, (points[i][0], points[i][1]), 2, (255, 0, 255), 2)
                     cv2.line(tracked, (points[i-1][0], points[i-1][1]), (points[i][0], points[i][1]), (0, 0, 100), 2)
-            # cv2.accumulateWeighted(frame, avg, 0.005)
+            # cv2.accumulateWeighted(frame, avg, 0.005
             # result = cv2.convertScaleAbs(avg)
             # cv2.imshow('avg',result)
 
